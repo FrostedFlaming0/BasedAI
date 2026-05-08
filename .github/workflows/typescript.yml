@@ -1,0 +1,37 @@
+name: typescript
+
+on:
+  push:
+    paths:
+      - 'client/typescript/**'
+      - '.github/workflows/typescript.yml'
+  pull_request:
+    paths:
+      - 'client/typescript/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client/typescript
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: client/typescript/package-lock.json
+
+      - name: Install
+        run: npm ci || npm install
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test

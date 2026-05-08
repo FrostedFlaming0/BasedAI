@@ -1,0 +1,29 @@
+brain_id: 8
+
+chain:
+  rpc_url: ${INK_RPC}
+  chain_id: 57073
+  based_token: "0x0000000000000000000000000000000000000000"
+  subnet_registry: "0x0000000000000000000000000000000000000000"
+  market: "0x0000000000000000000000000000000000000000"
+  scoring_registry: "0x0000000000000000000000000000000000000000"
+
+wallet:
+  private_key: ${MINER_PRIVATE_KEY}
+
+model:
+  name: "meta-llama/Llama-3-8b-instruct"
+  quantization: "awq"
+  max_model_len: 8192
+  gpu_memory_utilization: 0.9
+  tensor_parallel_size: 1
+
+p2p:
+  listen_addrs:
+    - "/ip4/0.0.0.0/tcp/4001"
+  bootstrap_peers:
+    - "/dns/bootstrap.basedai.network/tcp/4001/p2p/12D3KooW..."
+  gossip_topic_prefix: "basedai/v1"
+
+receipt_batch_size: 50
+receipt_batch_interval_seconds: 300

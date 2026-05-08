@@ -1,0 +1,23 @@
+brain_id: 8
+
+chain:
+  rpc_url: ${INK_RPC}
+  chain_id: 57073
+  based_token: "0x0000000000000000000000000000000000000000"
+  subnet_registry: "0x0000000000000000000000000000000000000000"
+  scoring_registry: "0x0000000000000000000000000000000000000000"
+  staking_vault: "0x0000000000000000000000000000000000000000"
+
+wallet:
+  private_key: ${VALIDATOR_PRIVATE_KEY}
+
+p2p:
+  listen_addrs:
+    - "/ip4/0.0.0.0/tcp/4101"
+  bootstrap_peers: []
+  gossip_topic_prefix: "basedai/v1"
+
+scoring:
+  challenge_interval_seconds: 60
+  challenges_per_epoch: 60
+  eval_set_path: "./eval_set.json"

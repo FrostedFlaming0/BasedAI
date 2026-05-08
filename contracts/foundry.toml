@@ -1,0 +1,29 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+solc = "0.8.24"
+optimizer = true
+optimizer_runs = 200
+via_ir = true
+fuzz = { runs = 256 }
+gas_reports = ["*"]
+
+[profile.ci]
+fuzz = { runs = 10_000 }
+verbosity = 4
+
+[rpc_endpoints]
+ink = "${INK_RPC}"
+ink_sepolia = "${INK_SEPOLIA_RPC}"
+mainnet = "${MAINNET_RPC}"
+
+[etherscan]
+ink = { key = "${INK_EXPLORER_API_KEY}", url = "https://explorer.inkonchain.com/api" }
+ink_sepolia = { key = "${INK_EXPLORER_API_KEY}", url = "https://explorer-sepolia.inkonchain.com/api" }
+
+[fmt]
+line_length = 120
+tab_width = 4
+bracket_spacing = false
+int_types = "long"
