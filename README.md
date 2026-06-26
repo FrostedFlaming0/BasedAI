@@ -1,6 +1,6 @@
 # BasedAI
 
-A decentralized LLM inference marketplace built on Ink (Kraken's L2), with NFT-gated subnets, stake-weighted scoring, and EVM-native economics anchored to existing community tokens.
+A decentralized LLM inference network built on Ink (Kraken's L2), with NFT-gated subnets, stake-weighted scoring, and EVM-native economics anchored to existing community tokens.
 
 ## What this is
 
