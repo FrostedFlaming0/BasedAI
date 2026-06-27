@@ -31,9 +31,10 @@ contract StakingVault is IStakingVault, AccessControl, ReentrancyGuard {
     mapping(uint256 brainId => uint256) public override brainStake;
     mapping(uint256 brainId => mapping(address validator => uint256)) public override validatorStake;
     mapping(uint256 brainId => mapping(address validator => mapping(address staker => uint256)))
-        public override stakerBalance;
-    mapping(uint256 brainId => mapping(address validator => mapping(address staker => PendingUnstake)))
-        public pendingUnstakes;
+        public
+        override stakerBalance;
+    mapping(uint256 brainId => mapping(address validator => mapping(address staker => PendingUnstake))) public
+        pendingUnstakes;
 
     constructor(IERC20 based, address admin) {
         BASED = based;
@@ -52,10 +53,7 @@ contract StakingVault is IStakingVault, AccessControl, ReentrancyGuard {
         emit Staked(brainId, validator, msg.sender, amount);
     }
 
-    function requestUnstake(uint256 brainId, address validator, uint256 amount)
-        external
-        nonReentrant
-    {
+    function requestUnstake(uint256 brainId, address validator, uint256 amount) external nonReentrant {
         if (amount == 0) revert InvalidAmount();
         uint256 balance = stakerBalance[brainId][validator][msg.sender];
         if (balance < amount) revert InsufficientStake();

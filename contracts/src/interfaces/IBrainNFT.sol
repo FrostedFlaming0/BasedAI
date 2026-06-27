@@ -5,7 +5,11 @@ pragma solidity ^0.8.24;
 /// @notice Brain ownership token. Lives on Ethereum mainnet, acquired by staking
 ///         either Pepecoin or $basedAI. Bridged to Ink L2 for operational use.
 interface IBrainNFT {
-    enum StakeAsset { None, Pepecoin, BasedAI }
+    enum StakeAsset {
+        None,
+        Pepecoin,
+        BasedAI
+    }
 
     event BrainMintedByPepecoinStake(uint256 indexed brainId, address indexed owner, uint256 amount);
     event BrainMintedByBasedStake(uint256 indexed brainId, address indexed owner, uint256 amount);

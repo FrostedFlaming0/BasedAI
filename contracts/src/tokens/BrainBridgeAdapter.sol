@@ -48,22 +48,11 @@ contract BrainBridgeAdapter is IERC721Receiver {
         // Approve the bridge to take it.
         BRAIN_NFT.approve(address(BRIDGE), brainId);
         // Trigger the canonical bridge.
-        BRIDGE.depositERC721To(
-            address(BRAIN_NFT),
-            BRAIN_NFT_L2,
-            l2Recipient,
-            brainId,
-            DEFAULT_MIN_GAS,
-            ""
-        );
+        BRIDGE.depositERC721To(address(BRAIN_NFT), BRAIN_NFT_L2, l2Recipient, brainId, DEFAULT_MIN_GAS, "");
         emit BridgedToL2(brainId, msg.sender, l2Recipient);
     }
 
-    function onERC721Received(address, address, uint256, bytes calldata)
-        external
-        pure
-        returns (bytes4)
-    {
+    function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
         return IERC721Receiver.onERC721Received.selector;
     }
 }

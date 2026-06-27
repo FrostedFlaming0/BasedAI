@@ -6,9 +6,7 @@ import asyncio
 import json
 import random
 import time
-from collections import defaultdict
 from pathlib import Path
-from typing import Optional
 
 import structlog
 from eth_account import Account
@@ -80,7 +78,7 @@ class Validator:
             await asyncio.sleep(self.config.scoring.challenge_interval_seconds)
             try:
                 await self._issue_challenge()
-            except Exception as e:
+            except Exception:
                 log.exception("validator.challenge_loop_error")
 
     async def _issue_challenge(self) -> None:
@@ -120,7 +118,7 @@ class Validator:
     def _discover_miners(self) -> list[str]:
         """Pull current miner set from chain. v1: simple polling; production gossips."""
         try:
-            count = self._registry_contract.functions.minerCount(self.config.brain_id).call()
+            _count = self._registry_contract.functions.minerCount(self.config.brain_id).call()
             # Real impl: enumerate via events or an indexer. v1: stub returns empty.
             return []
         except Exception:
@@ -140,7 +138,7 @@ class Validator:
             await self._wait_for_epoch_end(current_epoch)
             try:
                 await self._post_epoch_commitment(current_epoch)
-            except Exception as e:
+            except Exception:
                 log.exception("validator.epoch_post_failed")
             self._observations.clear()
 
@@ -177,7 +175,7 @@ class Validator:
             self.w3.codec.encode(["uint64", "bytes32"], [epoch, root])
         )
         msg = encode_defunct(digest)
-        signature = self.account.sign_message(msg).signature
+        _signature = self.account.sign_message(msg).signature
 
         log.info(
             "validator.epoch_signed",

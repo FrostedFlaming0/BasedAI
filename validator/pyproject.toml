@@ -4,7 +4,6 @@ version = "0.1.0"
 description = "BasedAI reference validator — scores miners and posts epoch commitments."
 requires-python = ">=3.10"
 dependencies = [
-    "py-libp2p>=0.2",
     "web3>=6.15",
     "eth-account>=0.11",
     "pydantic>=2.5",
@@ -12,13 +11,18 @@ dependencies = [
     "click>=8.1",
     "httpx>=0.27",
     "pyyaml>=6.0",
-    "merkletools>=1.0",
     "numpy>=1.26",
-    "scipy>=1.12",
-    "transformers>=4.40",
 ]
 
 [project.optional-dependencies]
+# Heavy ML / networking deps needed only for live operation (libp2p streams,
+# transformer-based reference scoring). Imported lazily, so they stay out of the
+# base install. Operators install them explicitly: `pip install -e '.[runtime]'`.
+runtime = [
+    "libp2p>=0.2",
+    "scipy>=1.12",
+    "transformers>=4.40",
+]
 dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "ruff>=0.4"]
 
 [project.scripts]

@@ -15,10 +15,10 @@ contract SubnetRegistry is ISubnetRegistry {
     uint256 public constant MAX_MINERS_PER_BRAIN = 1792;
 
     uint256 public constant DEFAULT_REGISTRATION_FEE = 100 ether;
-    uint16 public constant DEFAULT_OWNER_SPLIT_BPS = 800;        // 8% to owner
-    uint16 public constant DEFAULT_MINER_SHARE_BPS = 7609;       // 70% of 92% node share = 7609 of 10000
+    uint16 public constant DEFAULT_OWNER_SPLIT_BPS = 800; // 8% to owner
+    uint16 public constant DEFAULT_MINER_SHARE_BPS = 7609; // 70% of 92% node share = 7609 of 10000
 
-    uint16 public constant MAX_OWNER_SPLIT_BPS = 1500;           // 15% cap on owner share
+    uint16 public constant MAX_OWNER_SPLIT_BPS = 1500; // 15% cap on owner share
 
     /// @notice Registration fees are burned (sent to dead address) by network policy.
     address public constant BURN_ADDRESS = 0x000000000000000000000000000000000000dEaD;
@@ -47,10 +47,7 @@ contract SubnetRegistry is ISubnetRegistry {
         _;
     }
 
-    function activate(uint256 brainId, bytes32 modelHash, string calldata modelURI)
-        external
-        onlyOwner(brainId)
-    {
+    function activate(uint256 brainId, bytes32 modelHash, string calldata modelURI) external onlyOwner(brainId) {
         Subnet storage s = _subnets[brainId];
         s.owner = msg.sender;
         s.modelHash = modelHash;
@@ -79,11 +76,7 @@ contract SubnetRegistry is ISubnetRegistry {
         emit SubnetConfigured(brainId, modelHash, modelURI);
     }
 
-    function setRegistrationFee(uint256 brainId, uint256 fee)
-        external
-        onlyOwner(brainId)
-        onlyActive(brainId)
-    {
+    function setRegistrationFee(uint256 brainId, uint256 fee) external onlyOwner(brainId) onlyActive(brainId) {
         _subnets[brainId].registrationFee = fee;
         emit RegistrationFeeUpdated(brainId, fee);
     }
@@ -104,11 +97,8 @@ contract SubnetRegistry is ISubnetRegistry {
         if (_validators[brainId][msg.sender].active) revert AlreadyRegistered();
         if (_validatorCount[brainId] >= MAX_VALIDATORS_PER_BRAIN) revert CapacityReached();
         _payFee(brainId);
-        _validators[brainId][msg.sender] = ValidatorInfo({
-            registeredAt: uint64(block.timestamp),
-            lastActiveEpoch: 0,
-            active: true
-        });
+        _validators[brainId][msg.sender] =
+            ValidatorInfo({registeredAt: uint64(block.timestamp), lastActiveEpoch: 0, active: true});
         _validatorCount[brainId] += 1;
         emit ValidatorRegistered(brainId, msg.sender);
     }
@@ -124,11 +114,8 @@ contract SubnetRegistry is ISubnetRegistry {
         if (_miners[brainId][msg.sender].active) revert AlreadyRegistered();
         if (_minerCount[brainId] >= MAX_MINERS_PER_BRAIN) revert CapacityReached();
         _payFee(brainId);
-        _miners[brainId][msg.sender] = MinerInfo({
-            registeredAt: uint64(block.timestamp),
-            lastActiveEpoch: 0,
-            active: true
-        });
+        _miners[brainId][msg.sender] =
+            MinerInfo({registeredAt: uint64(block.timestamp), lastActiveEpoch: 0, active: true});
         _minerCount[brainId] += 1;
         emit MinerRegistered(brainId, msg.sender);
     }

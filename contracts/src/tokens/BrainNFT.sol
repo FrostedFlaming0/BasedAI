@@ -30,7 +30,7 @@ contract BrainNFT is ERC721Enumerable, ReentrancyGuard, AccessControl, IBrainNFT
     IERC20 public immutable PEPECOIN;
     IERC20 public immutable BASEDAI;
 
-    uint256 public override totalSupply;
+    uint256 private _totalSupply;
     uint256 public nextPublicId = FIRST_PUBLIC_ID;
 
     struct StakeRecord {
@@ -59,6 +59,11 @@ contract BrainNFT is ERC721Enumerable, ReentrancyGuard, AccessControl, IBrainNFT
 
     function stakeAssetOf(uint256 brainId) external view returns (StakeAsset) {
         return stakes[brainId].asset;
+    }
+
+    /// @notice Number of Brains currently in existence (manually accounted on mint/burn).
+    function totalSupply() public view override(ERC721Enumerable, IBrainNFT) returns (uint256) {
+        return _totalSupply;
     }
 
     // --- Mint paths ---
@@ -104,7 +109,7 @@ contract BrainNFT is ERC721Enumerable, ReentrancyGuard, AccessControl, IBrainNFT
         // Refund original staker (which equals owner since stake-minted is non-transferable).
         delete stakes[brainId];
         _burn(brainId);
-        totalSupply -= 1;
+        _totalSupply -= 1;
 
         IERC20 token = record.asset == StakeAsset.Pepecoin ? PEPECOIN : BASEDAI;
         token.safeTransfer(record.staker, record.amount);
@@ -114,10 +119,7 @@ contract BrainNFT is ERC721Enumerable, ReentrancyGuard, AccessControl, IBrainNFT
 
     // --- Governance ---
 
-    function setStakeAmount(StakeAsset asset, uint256 newAmount)
-        external
-        onlyRole(GOVERNANCE_ROLE)
-    {
+    function setStakeAmount(StakeAsset asset, uint256 newAmount) external onlyRole(GOVERNANCE_ROLE) {
         if (newAmount == 0) revert InvalidStakeAmount();
 
         if (asset == StakeAsset.Pepecoin) {
@@ -139,19 +141,15 @@ contract BrainNFT is ERC721Enumerable, ReentrancyGuard, AccessControl, IBrainNFT
     // --- Internals ---
 
     function _allocateBrainId() internal returns (uint256) {
-        if (totalSupply >= MAX_SUPPLY - FIRST_PUBLIC_ID) revert MaxSupplyReached();
+        if (_totalSupply >= MAX_SUPPLY - FIRST_PUBLIC_ID) revert MaxSupplyReached();
         uint256 candidate = nextPublicId;
         nextPublicId = candidate + 1;
-        totalSupply += 1;
+        _totalSupply += 1;
         return candidate;
     }
 
     /// @dev Stake-minted Brains are non-transferable until burned.
-    function _update(address to, uint256 tokenId, address auth)
-        internal
-        override
-        returns (address)
-    {
+    function _update(address to, uint256 tokenId, address auth) internal override returns (address) {
         address from = _ownerOf(tokenId);
         if (from != address(0) && to != address(0)) {
             // Transfer between non-zero addresses is forbidden.

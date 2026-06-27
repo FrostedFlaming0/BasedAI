@@ -6,10 +6,7 @@ direct request/response streams from users and validators.
 
 from __future__ import annotations
 
-import asyncio
-import json
-from dataclasses import asdict
-from typing import Awaitable, Callable, Optional
+from typing import Awaitable, Callable
 
 import structlog
 

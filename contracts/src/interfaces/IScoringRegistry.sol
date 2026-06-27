@@ -6,10 +6,10 @@ pragma solidity ^0.8.24;
 ///         can challenge equivocation or out-of-bounds scores.
 interface IScoringRegistry {
     struct EpochCommitment {
-        bytes32 merkleRoot;          // root over (brainId, miner, score) leaves
-        uint64 finalizedAt;          // 0 until challenge window passes
-        uint32 signerCount;          // number of validator signatures included
-        uint256 signerStake;         // total stake of signers
+        bytes32 merkleRoot; // root over (brainId, miner, score) leaves
+        uint64 finalizedAt; // 0 until challenge window passes
+        uint32 signerCount; // number of validator signatures included
+        uint256 signerStake; // total stake of signers
     }
 
     event EpochProposed(uint64 indexed epoch, bytes32 merkleRoot, uint256 signerStake);
@@ -36,12 +36,8 @@ interface IScoringRegistry {
     /// @param merkleRoot Root committing to (brainId, miner, score) leaves.
     /// @param signers Sorted list of validator addresses (ascending).
     /// @param signatures EIP-191 signatures from each signer over (epoch, merkleRoot).
-    function proposeEpoch(
-        uint64 epoch,
-        bytes32 merkleRoot,
-        address[] calldata signers,
-        bytes[] calldata signatures
-    ) external;
+    function proposeEpoch(uint64 epoch, bytes32 merkleRoot, address[] calldata signers, bytes[] calldata signatures)
+        external;
 
     /// @notice Finalizes an epoch after the challenge window has elapsed.
     function finalizeEpoch(uint64 epoch) external;
@@ -57,13 +53,10 @@ interface IScoringRegistry {
     ) external;
 
     /// @notice Verifies a (brainId, miner, score) leaf against a finalized epoch root.
-    function verifyScore(
-        uint64 epoch,
-        uint256 brainId,
-        address miner,
-        uint256 score,
-        bytes32[] calldata proof
-    ) external view returns (bool);
+    function verifyScore(uint64 epoch, uint256 brainId, address miner, uint256 score, bytes32[] calldata proof)
+        external
+        view
+        returns (bool);
 
     function getEpoch(uint64 epoch) external view returns (EpochCommitment memory);
 }

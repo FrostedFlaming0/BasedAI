@@ -4,10 +4,6 @@ version = "0.1.0"
 description = "BasedAI reference miner — runs LLM inference and serves prompts via libp2p."
 requires-python = ">=3.10"
 dependencies = [
-    "torch>=2.1",
-    "transformers>=4.40",
-    "vllm>=0.4",
-    "py-libp2p>=0.2",
     "web3>=6.15",
     "eth-account>=0.11",
     "pydantic>=2.5",
@@ -18,6 +14,16 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Heavy ML / networking deps needed only to actually run inference and P2P.
+# They are imported lazily (see inference.py, p2p.py), so they stay out of the
+# base install — CI and library consumers don't pull multi-GB packages.
+# Operators install them explicitly: `pip install -e '.[runtime]'`.
+runtime = [
+    "torch>=2.1",
+    "transformers>=4.40",
+    "vllm>=0.4",
+    "libp2p>=0.2",
+]
 dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "ruff>=0.4", "mypy>=1.9"]
 
 [project.scripts]

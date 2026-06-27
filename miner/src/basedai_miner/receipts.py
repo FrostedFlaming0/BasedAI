@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import time
-from dataclasses import dataclass, asdict
-from typing import Optional
+from dataclasses import dataclass
 
 from eth_account import Account
 from eth_account.messages import encode_defunct
@@ -89,7 +87,7 @@ class ReceiptBatcher:
                 signed = self.account.sign_transaction(tx)
                 tx_hash = self.market.w3.eth.send_raw_transaction(signed.rawTransaction)
                 tx_hashes.append(tx_hash.hex())
-            except Exception as e:
+            except Exception:
                 # Receipt may have expired or been double-spent; drop and continue.
                 continue
         self._pending.clear()

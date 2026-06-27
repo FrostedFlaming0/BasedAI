@@ -6,12 +6,12 @@ pragma solidity ^0.8.24;
 interface ISubnetRegistry {
     /// @dev One Brain's runtime configuration.
     struct Subnet {
-        address owner;              // resolved from L2 BrainNFT representation
-        bytes32 modelHash;          // content hash identifying the model
-        string modelURI;            // human-readable model spec (e.g., HF URL)
-        uint256 registrationFee;    // BASED required to register as miner/validator
-        uint16 ownerSplitBps;       // basis points to owner; remainder to nodes (default 800 = 8%)
-        uint16 minerShareBps;       // miners' share of node split (default 7609 = 70% of 92%)
+        address owner; // resolved from L2 BrainNFT representation
+        bytes32 modelHash; // content hash identifying the model
+        string modelURI; // human-readable model spec (e.g., HF URL)
+        uint256 registrationFee; // BASED required to register as miner/validator
+        uint16 ownerSplitBps; // basis points to owner; remainder to nodes (default 800 = 8%)
+        uint16 minerShareBps; // miners' share of node split (default 7609 = 70% of 92%)
         uint64 createdAt;
         bool active;
     }

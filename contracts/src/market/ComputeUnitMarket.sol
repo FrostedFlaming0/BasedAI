@@ -32,11 +32,7 @@ contract ComputeUnitMarket is ReentrancyGuard {
     event Deposited(address indexed user, uint256 amount);
     event Withdrawn(address indexed user, uint256 amount);
     event ReceiptRedeemed(
-        address indexed user,
-        address indexed miner,
-        uint256 indexed brainId,
-        uint256 amount,
-        uint256 nonce
+        address indexed user, address indexed miner, uint256 indexed brainId, uint256 amount, uint256 nonce
     );
 
     error InsufficientBalance();
@@ -68,18 +64,20 @@ contract ComputeUnitMarket is ReentrancyGuard {
         if (balances[r.user] < r.amount) revert InsufficientBalance();
         if (msg.sender != r.miner) revert InvalidSignature();
 
-        bytes32 digest = keccak256(abi.encode(
-            address(this),
-            block.chainid,
-            r.user,
-            r.miner,
-            r.brainId,
-            r.promptHash,
-            r.responseHash,
-            r.amount,
-            r.expiry,
-            r.nonce
-        )).toEthSignedMessageHash();
+        bytes32 digest = keccak256(
+                abi.encode(
+                    address(this),
+                    block.chainid,
+                    r.user,
+                    r.miner,
+                    r.brainId,
+                    r.promptHash,
+                    r.responseHash,
+                    r.amount,
+                    r.expiry,
+                    r.nonce
+                )
+            ).toEthSignedMessageHash();
 
         if (ECDSA.recover(digest, userSig) != r.user) revert InvalidSignature();
 

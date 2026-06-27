@@ -9,12 +9,18 @@ import {ISubnetRegistry} from "../src/interfaces/ISubnetRegistry.sol";
 
 contract MockBASED is ERC20 {
     constructor() ERC20("BASED", "BASED") {}
-    function mint(address to, uint256 amt) external { _mint(to, amt); }
+
+    function mint(address to, uint256 amt) external {
+        _mint(to, amt);
+    }
 }
 
 contract MockBrainNFT is ERC721 {
     constructor() ERC721("Brain", "BRAIN") {}
-    function mint(address to, uint256 id) external { _mint(to, id); }
+
+    function mint(address to, uint256 id) external {
+        _mint(to, id);
+    }
 }
 
 contract SubnetRegistryTest is Test {

@@ -10,7 +10,7 @@ import {
   type PublicClient,
   type WalletClient,
 } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
+import { privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import { basedTokenAbi, marketAbi, subnetRegistryAbi } from "./abi.js";
 import { newNonce, signReceipt } from "./receipt.js";
 import type {
@@ -25,7 +25,7 @@ export class BasedClient {
   private readonly config: ClientConfig;
   private readonly publicClient: PublicClient;
   private readonly walletClient?: WalletClient;
-  private readonly account?: { address: Address };
+  private readonly account?: PrivateKeyAccount;
 
   constructor(config: ClientConfig) {
     this.config = config;

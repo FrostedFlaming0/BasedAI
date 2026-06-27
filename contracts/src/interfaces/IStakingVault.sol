@@ -6,7 +6,9 @@ pragma solidity ^0.8.24;
 ///         which then distribute to their stakers proportionally.
 interface IStakingVault {
     event Staked(uint256 indexed brainId, address indexed validator, address indexed staker, uint256 amount);
-    event UnstakeRequested(uint256 indexed brainId, address indexed validator, address indexed staker, uint256 amount, uint64 unlockAt);
+    event UnstakeRequested(
+        uint256 indexed brainId, address indexed validator, address indexed staker, uint256 amount, uint64 unlockAt
+    );
     event UnstakeClaimed(uint256 indexed brainId, address indexed validator, address indexed staker, uint256 amount);
     event Slashed(uint256 indexed brainId, address indexed validator, uint256 amount, bytes32 reason);
 

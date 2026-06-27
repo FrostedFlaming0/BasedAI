@@ -8,7 +8,10 @@ import {IStakingVault} from "../src/interfaces/IStakingVault.sol";
 
 contract MockBASED is ERC20 {
     constructor() ERC20("BASED", "BASED") {}
-    function mint(address to, uint256 amt) external { _mint(to, amt); }
+
+    function mint(address to, uint256 amt) external {
+        _mint(to, amt);
+    }
 }
 
 contract StakingVaultTest is Test {
@@ -25,8 +28,9 @@ contract StakingVaultTest is Test {
         based = new MockBASED();
         vault = new StakingVault(based, admin);
 
+        bytes32 slasherRole = vault.SLASHER_ROLE();
         vm.prank(admin);
-        vault.grantRole(vault.SLASHER_ROLE(), slasher);
+        vault.grantRole(slasherRole, slasher);
 
         based.mint(staker, 10_000 ether);
         vm.prank(staker);

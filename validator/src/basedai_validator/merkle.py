@@ -10,7 +10,6 @@ second-preimage attacks on internal nodes.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable
 
 from eth_abi import encode as abi_encode
 from eth_utils import keccak
@@ -36,7 +35,7 @@ def build_merkle_root(leaves: list[ScoreLeaf]) -> tuple[bytes, list[bytes]]:
     if not leaves:
         return b"\x00" * 32, []
 
-    hashed = sorted(l.hash() for l in leaves)
+    hashed = sorted(leaf.hash() for leaf in leaves)
     layer = list(hashed)
 
     while len(layer) > 1:
@@ -55,7 +54,7 @@ def build_merkle_root(leaves: list[ScoreLeaf]) -> tuple[bytes, list[bytes]]:
 def build_proof(leaves: list[ScoreLeaf], target: ScoreLeaf) -> list[bytes]:
     """Build a Merkle proof for `target` against the tree of `leaves`."""
     target_hash = target.hash()
-    hashed = sorted(l.hash() for l in leaves)
+    hashed = sorted(leaf.hash() for leaf in leaves)
     if target_hash not in hashed:
         raise ValueError("target leaf not in set")
 

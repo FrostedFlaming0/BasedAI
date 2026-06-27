@@ -38,12 +38,9 @@ contract ScoringRegistry is IScoringRegistry {
         return _epochs[epoch];
     }
 
-    function proposeEpoch(
-        uint64 epoch,
-        bytes32 merkleRoot,
-        address[] calldata signers,
-        bytes[] calldata signatures
-    ) external {
+    function proposeEpoch(uint64 epoch, bytes32 merkleRoot, address[] calldata signers, bytes[] calldata signatures)
+        external
+    {
         if (_epochs[epoch].merkleRoot != bytes32(0)) revert EpochAlreadyProposed();
         require(signers.length == signatures.length, "length mismatch");
 
@@ -73,10 +70,7 @@ contract ScoringRegistry is IScoringRegistry {
         if (stakeSum < minStake) revert InsufficientSignerStake();
 
         _epochs[epoch] = EpochCommitment({
-            merkleRoot: merkleRoot,
-            finalizedAt: 0,
-            signerCount: uint32(signers.length),
-            signerStake: stakeSum
+            merkleRoot: merkleRoot, finalizedAt: 0, signerCount: uint32(signers.length), signerStake: stakeSum
         });
 
         emit EpochProposed(epoch, merkleRoot, stakeSum);
@@ -123,13 +117,11 @@ contract ScoringRegistry is IScoringRegistry {
         emit EpochChallenged(epoch, msg.sender, "EQUIVOCATION");
     }
 
-    function verifyScore(
-        uint64 epoch,
-        uint256 brainId,
-        address miner,
-        uint256 score,
-        bytes32[] calldata proof
-    ) external view returns (bool) {
+    function verifyScore(uint64 epoch, uint256 brainId, address miner, uint256 score, bytes32[] calldata proof)
+        external
+        view
+        returns (bool)
+    {
         EpochCommitment storage c = _epochs[epoch];
         if (c.merkleRoot == bytes32(0) || c.finalizedAt == 0) return false;
 

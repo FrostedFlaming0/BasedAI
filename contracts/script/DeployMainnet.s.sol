@@ -27,17 +27,9 @@ contract DeployMainnet is Script {
 
         vm.startBroadcast(pk);
 
-        BrainNFT brain = new BrainNFT(
-            IERC20(pepecoin),
-            IERC20(basedAI),
-            pepeStake,
-            basedStake,
-            governance
-        );
+        BrainNFT brain = new BrainNFT(IERC20(pepecoin), IERC20(basedAI), pepeStake, basedStake, governance);
 
-        BrainBridgeAdapter adapter = new BrainBridgeAdapter(
-            brain, brainNFTL2, IL1NFTBridge(l1Bridge)
-        );
+        BrainBridgeAdapter adapter = new BrainBridgeAdapter(brain, brainNFTL2, IL1NFTBridge(l1Bridge));
 
         vm.stopBroadcast();
 

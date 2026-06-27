@@ -19,17 +19,12 @@ contract BasedGovernor is Governor, GovernorSettings, GovernorCountingSimple, Go
     IStakingVault public immutable STAKING;
     uint256 public immutable BRAIN_SUPPLY_CAP;
 
-    constructor(
-        IERC721 brainNFTL2,
-        IStakingVault staking,
-        TimelockController timelock,
-        uint256 brainSupplyCap
-    )
+    constructor(IERC721 brainNFTL2, IStakingVault staking, TimelockController timelock, uint256 brainSupplyCap)
         Governor("BasedGovernor")
         GovernorSettings(
-            1 days,    // voting delay
-            7 days,    // voting period
-            0          // proposal threshold (any GigaBrain holder can propose)
+            1 days, // voting delay
+            7 days, // voting period
+            0 // proposal threshold (any GigaBrain holder can propose)
         )
         GovernorTimelockControl(timelock)
     {
@@ -38,12 +33,7 @@ contract BasedGovernor is Governor, GovernorSettings, GovernorCountingSimple, Go
         BRAIN_SUPPLY_CAP = brainSupplyCap;
     }
 
-    function _getVotes(address account, uint256, bytes memory)
-        internal
-        view
-        override
-        returns (uint256)
-    {
+    function _getVotes(address account, uint256, bytes memory) internal view override returns (uint256) {
         // Count Brains owned by `account` whose stake exceeds the GigaBrain threshold.
         uint256 totalNetStake = STAKING.totalStaked();
         if (totalNetStake == 0) return 0;
@@ -54,9 +44,8 @@ contract BasedGovernor is Governor, GovernorSettings, GovernorCountingSimple, Go
         uint256 balance = BRAIN_NFT_L2.balanceOf(account);
         for (uint256 i = 0; i < balance; i++) {
             // Casting to enumerable interface inline to avoid extra import surface.
-            (bool ok, bytes memory ret) = address(BRAIN_NFT_L2).staticcall(
-                abi.encodeWithSignature("tokenOfOwnerByIndex(address,uint256)", account, i)
-            );
+            (bool ok, bytes memory ret) = address(BRAIN_NFT_L2)
+                .staticcall(abi.encodeWithSignature("tokenOfOwnerByIndex(address,uint256)", account, i));
             if (!ok) continue;
             uint256 brainId = abi.decode(ret, (uint256));
             if (STAKING.brainStake(brainId) >= threshold) votes += 1;
@@ -90,12 +79,7 @@ contract BasedGovernor is Governor, GovernorSettings, GovernorCountingSimple, Go
         return super.proposalThreshold();
     }
 
-    function state(uint256 proposalId)
-        public
-        view
-        override(Governor, GovernorTimelockControl)
-        returns (ProposalState)
-    {
+    function state(uint256 proposalId) public view override(Governor, GovernorTimelockControl) returns (ProposalState) {
         return super.state(proposalId);
     }
 
