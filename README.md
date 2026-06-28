@@ -1,12 +1,5 @@
 # BasedAI
 
-> ⚠️ **Prototype — not production-ready, not audited for deployment.** Several economic
-> components described below (fee distribution, staking rewards, emissions, score-driven payouts)
-> are **not yet implemented**, and parts of the off-chain network are stubs. See
-> [IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md) for the authoritative
-> implemented-vs-planned matrix and [SECURITY_AUDIT.md](./SECURITY_AUDIT.md) for findings.
-> Do not deposit funds, stake, bridge, or deploy to mainnet.
-
 A decentralized LLM inference network built on Ink (Kraken's L2), with NFT-gated subnets, stake-weighted scoring, and EVM-native economics anchored to existing community tokens.
 
 ## What this is
