@@ -83,7 +83,7 @@ Brains are acquired by **staking** either Pepecoin or $basedAI for a 90-day init
 
 | Method | Stake amount | Lock | Recoverability |
 |---|---|---|---|
-| Pepecoin stake | 100,000 PEPE | 90 days | Refundable on Brain deactivation |
+| Pepecoin stake | 100,000 Pepecoin | 90 days | Refundable on Brain deactivation |
 | $basedAI stake | 10,000 basedAI | 90 days | Refundable on Brain deactivation |
 
 The two stake amounts are calibrated quarterly by governance to maintain rough parity in USD terms. Initial values are illustrative; final amounts will be set at deployment based on then-current prices and adjusted on a quarterly schedule with a hard floor of 50% and ceiling of 200% of the previous quarter's value.
