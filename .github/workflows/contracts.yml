@@ -48,4 +48,6 @@ jobs:
           FOUNDRY_PROFILE: ci
 
       - name: Coverage
-        run: forge coverage --report summary
+        # --ir-minimum enables viaIR with minimal optimization; without it coverage's
+        # optimizer-disabled compile hits "stack too deep" in the deploy scripts.
+        run: forge coverage --ir-minimum --report summary

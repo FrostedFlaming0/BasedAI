@@ -18,7 +18,7 @@ cd contracts
 forge fmt --check
 forge build --sizes
 FOUNDRY_PROFILE=ci forge test -vvv
-forge coverage --report summary
+forge coverage --ir-minimum --report summary
 cd ..
 
 cd miner && ruff check src tests && PYTHONPATH=src pytest -v && cd ..
