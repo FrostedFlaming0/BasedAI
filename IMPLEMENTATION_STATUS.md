@@ -46,9 +46,9 @@
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| L1 escrow into adapter | Implemented | Requires `BrainNFT.setBridge(adapter)` (done in deploy) |
-| `IL1NFTBridge` integration | **Placeholder** | Canonical Ink bridge ABI must be finalized + tested |
-| L2 mint/burn authority | Implemented | `BRIDGE_ROLE`; grant the canonical messenger via governance |
+| L1 escrow into adapter | Implemented | `BrainNFT.setBridge(<canonical L1ERC721Bridge>)` + `setBridgeEndpoint(adapter, true)` (done in `DeployMainnet`) |
+| Canonical bridge integration | Implemented | Uses the OP Stack `IL1ERC721Bridge` / `IOptimismMintableERC721` ABI (Ink L1ERC721Bridge: mainnet `0x6612…0be`, Sepolia `0xd1c9…8c7`); unit-tested (`BlockerFixes.t.sol`). Live cross-chain message-passing still pending public testnet |
+| L2 mint/burn authority | Implemented | `BrainNFTL2` is an `OptimismMintableERC721`; mint/burn restricted to the **immutable** canonical `L2ERC721Bridge` predeploy `0x4200…0014` (no `BRIDGE_ROLE`, fixed at construction) |
 
 ## Release gates
 
@@ -69,4 +69,6 @@ Still required before mainnet — freeze deposits/stake/bridge/mainnet until:
 - a **public testnet** has run the end-to-end loop (deposit → infer → redeem-split →
   distribute → yield; challenge → epoch commit → aggregate → propose → finalize);
 - **validator scoring** gets collusion/Sybil hardening and a non-public eval set;
-- the **canonical Ink `IL1NFTBridge` ABI** is finalized and integration-tested.
+- a **live cross-chain integration test** of the canonical Ink bridge path (L1 deposit → L2 mint
+  → L2 withdraw → L1 release) on a public testnet — the OP Stack `IL1ERC721Bridge` /
+  `IOptimismMintableERC721` ABI is finalized and unit-tested; only the live message-passing leg remains.
