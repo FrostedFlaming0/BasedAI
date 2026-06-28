@@ -4,55 +4,66 @@ pragma solidity ^0.8.24;
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 
-/// @notice Minimal interface to Ink's L1 standard bridge for NFTs.
-///         The exact ABI may vary; this is a placeholder for the canonical bridge interface.
-interface IL1NFTBridge {
-    function depositERC721To(
-        address l1Token,
-        address l2Token,
-        address to,
-        uint256 tokenId,
-        uint32 minGasLimit,
-        bytes calldata extraData
+/// @notice The OP Stack canonical L1 ERC-721 bridge interface (Ink uses the standard predeploy set).
+///         This is the REAL `L1ERC721Bridge.bridgeERC721To` ABI from ethereum-optimism, not a
+///         placeholder. Ink L1ERC721Bridge: mainnet 0x661235a238b11191211fa95d4dd9e423d521e0be,
+///         Sepolia 0xd1c901bbd7796546a7ba2492e0e199911fae68c7.
+interface IL1ERC721Bridge {
+    function bridgeERC721To(
+        address _localToken,
+        address _remoteToken,
+        address _to,
+        uint256 _tokenId,
+        uint32 _minGasLimit,
+        bytes calldata _extraData
     ) external;
 }
 
 /// @title BrainBridgeAdapter
-/// @notice Owner-side helper that escrows a Brain NFT on L1 and triggers the bridge
-///         to mint a representation on L2.
+/// @notice Optional one-call helper that escrows a Brain NFT on L1 and triggers Ink's canonical
+///         L1ERC721Bridge to mint the L2 representation. Users MAY instead approve the L1ERC721Bridge
+///         directly and call `bridgeERC721To` — the adapter only pins the correct remote token and gas.
 ///
 /// Flow:
-///   1. Brain owner approves this contract for their BrainNFT.
+///   1. Brain owner approves this adapter for their BrainNFT.
 ///   2. Owner calls bridgeToL2(brainId, l2Recipient).
-///   3. This contract takes custody and calls Ink's L1 NFT bridge.
-///   4. Ink's bridge mints the L2 representation NFT to l2Recipient.
+///   3. The adapter takes custody, approves the canonical bridge, and calls bridgeERC721To.
+///   4. Ink's L2ERC721Bridge mints the `BrainNFTL2` (an OptimismMintableERC721) to l2Recipient.
 ///
-/// Bringing a Brain back to L1 follows the standard withdraw flow on Ink directly.
+/// Returning a Brain to L1 uses the canonical L2->L1 withdrawal on Ink (burns L2, releases the L1
+/// escrow back to the owner). For both legs the L1ERC721Bridge must be authorized as a bridge
+/// endpoint on BrainNFT (and, when this adapter is used, the adapter too).
 contract BrainBridgeAdapter is IERC721Receiver {
     IERC721 public immutable BRAIN_NFT;
     address public immutable BRAIN_NFT_L2;
-    IL1NFTBridge public immutable BRIDGE;
+    IL1ERC721Bridge public immutable BRIDGE;
     uint32 public constant DEFAULT_MIN_GAS = 200_000;
 
     event BridgedToL2(uint256 indexed brainId, address indexed owner, address indexed l2Recipient);
 
-    constructor(IERC721 brainNFT, address brainNFTL2, IL1NFTBridge bridge) {
+    error ZeroRecipient();
+    error UnsupportedNFT();
+
+    constructor(IERC721 brainNFT, address brainNFTL2, IL1ERC721Bridge bridge) {
         BRAIN_NFT = brainNFT;
         BRAIN_NFT_L2 = brainNFTL2;
         BRIDGE = bridge;
     }
 
     function bridgeToL2(uint256 brainId, address l2Recipient) external {
-        // Pull the NFT into this adapter; owner must have approved.
+        if (l2Recipient == address(0)) revert ZeroRecipient();
+        // Pull the NFT into this adapter; owner must have approved. (BrainNFT must authorize this
+        // adapter AND the canonical bridge as `bridge` endpoints so the soulbound token can move.)
         BRAIN_NFT.transferFrom(msg.sender, address(this), brainId);
-        // Approve the bridge to take it.
+        // Approve the canonical bridge to escrow it, then trigger the deposit.
         BRAIN_NFT.approve(address(BRIDGE), brainId);
-        // Trigger the canonical bridge.
-        BRIDGE.depositERC721To(address(BRAIN_NFT), BRAIN_NFT_L2, l2Recipient, brainId, DEFAULT_MIN_GAS, "");
+        BRIDGE.bridgeERC721To(address(BRAIN_NFT), BRAIN_NFT_L2, l2Recipient, brainId, DEFAULT_MIN_GAS, "");
         emit BridgedToL2(brainId, msg.sender, l2Recipient);
     }
 
-    function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
+    /// @dev Only accept the Brain NFT, so unrelated NFTs cannot be safe-transferred in and trapped.
+    function onERC721Received(address, address, uint256, bytes calldata) external view returns (bytes4) {
+        if (msg.sender != address(BRAIN_NFT)) revert UnsupportedNFT();
         return IERC721Receiver.onERC721Received.selector;
     }
 }

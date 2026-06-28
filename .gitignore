@@ -21,7 +21,8 @@ build/
 
 # Environments
 .env
-.env.local
+.env.*
+!.env.example
 .venv/
 venv/
 
@@ -36,7 +37,14 @@ Thumbs.db
 
 # Secrets
 *.key
+*.pem
+*.keystore
+*.mnemonic
+*secret*
+*private*
+keystore/
 config.yaml
+config.*.yaml
 !config.example.yaml
 
 # Logs

@@ -4,11 +4,12 @@ pragma solidity ^0.8.24;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {ISubnetRegistry} from "../interfaces/ISubnetRegistry.sol";
 
 /// @title SubnetRegistry
 /// @notice Per-Brain configuration and miner/validator membership.
-contract SubnetRegistry is ISubnetRegistry {
+contract SubnetRegistry is ISubnetRegistry, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     uint256 public constant MAX_VALIDATORS_PER_BRAIN = 256;
@@ -49,6 +50,9 @@ contract SubnetRegistry is ISubnetRegistry {
 
     function activate(uint256 brainId, bytes32 modelHash, string calldata modelURI) external onlyOwner(brainId) {
         Subnet storage s = _subnets[brainId];
+        // One-shot initialization: re-activating an active subnet must not silently reset its
+        // fee/splits/model. Use setModel/setRegistrationFee/setEmissionSplit to reconfigure.
+        if (s.active) revert SubnetAlreadyActive();
         s.owner = msg.sender;
         s.modelHash = modelHash;
         s.modelURI = modelURI;
@@ -93,13 +97,15 @@ contract SubnetRegistry is ISubnetRegistry {
         emit EmissionSplitUpdated(brainId, ownerSplitBps, minerShareBps);
     }
 
-    function registerValidator(uint256 brainId) external onlyActive(brainId) {
+    function registerValidator(uint256 brainId, uint256 maxFee) external nonReentrant onlyActive(brainId) {
         if (_validators[brainId][msg.sender].active) revert AlreadyRegistered();
         if (_validatorCount[brainId] >= MAX_VALIDATORS_PER_BRAIN) revert CapacityReached();
-        _payFee(brainId);
+        // Effects before interaction (CEI): membership is written before the fee transfer, and the
+        // function is nonReentrant, so a hook-bearing token cannot re-enter to inflate counts.
         _validators[brainId][msg.sender] =
             ValidatorInfo({registeredAt: uint64(block.timestamp), lastActiveEpoch: 0, active: true});
         _validatorCount[brainId] += 1;
+        _payFee(brainId, maxFee);
         emit ValidatorRegistered(brainId, msg.sender);
     }
 
@@ -110,13 +116,13 @@ contract SubnetRegistry is ISubnetRegistry {
         emit ValidatorDeregistered(brainId, msg.sender);
     }
 
-    function registerMiner(uint256 brainId) external onlyActive(brainId) {
+    function registerMiner(uint256 brainId, uint256 maxFee) external nonReentrant onlyActive(brainId) {
         if (_miners[brainId][msg.sender].active) revert AlreadyRegistered();
         if (_minerCount[brainId] >= MAX_MINERS_PER_BRAIN) revert CapacityReached();
-        _payFee(brainId);
         _miners[brainId][msg.sender] =
             MinerInfo({registeredAt: uint64(block.timestamp), lastActiveEpoch: 0, active: true});
         _minerCount[brainId] += 1;
+        _payFee(brainId, maxFee);
         emit MinerRegistered(brainId, msg.sender);
     }
 
@@ -127,8 +133,10 @@ contract SubnetRegistry is ISubnetRegistry {
         emit MinerDeregistered(brainId, msg.sender);
     }
 
-    function _payFee(uint256 brainId) internal {
+    function _payFee(uint256 brainId, uint256 maxFee) internal {
         uint256 fee = _subnets[brainId].registrationFee;
+        // Slippage guard: protects registrants from a fee hike front-run by the Brain owner.
+        if (fee > maxFee) revert FeeExceedsMax();
         if (fee > 0) {
             // 100% of registration fees are burned (network policy).
             BASED.safeTransferFrom(msg.sender, BURN_ADDRESS, fee);
@@ -138,7 +146,16 @@ contract SubnetRegistry is ISubnetRegistry {
     // --- Views ---
 
     function getSubnet(uint256 brainId) external view returns (Subnet memory) {
-        return _subnets[brainId];
+        Subnet memory s = _subnets[brainId];
+        // Resolve the owner dynamically from the live BrainNFT so owner fees follow NFT transfers.
+        // The stored `owner` (set once at activation) is only a fallback if the live lookup reverts
+        // (e.g. the Brain was burned). This closes the stale-owner fee-misrouting after a transfer.
+        if (s.active) {
+            try BRAIN_NFT.ownerOf(brainId) returns (address live) {
+                s.owner = live;
+            } catch {}
+        }
+        return s;
     }
 
     function isValidator(uint256 brainId, address who) external view returns (bool) {

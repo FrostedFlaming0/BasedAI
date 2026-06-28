@@ -42,7 +42,12 @@ def register(config: str) -> None:
     """Register as a miner on the configured Brain."""
     cfg = MinerConfig.from_file(config)
     miner = Miner(cfg)
-    asyncio.run(miner._verify_registration())
+    ok = asyncio.run(miner.verify_registration())
+    if not ok:
+        # Fail closed: do not print success when registration did not take effect.
+        raise click.ClickException(
+            f"Registration NOT confirmed for {miner.account.address} on Brain {cfg.brain_id}"
+        )
     click.echo(f"Registered miner {miner.account.address} on Brain {cfg.brain_id}")
 
 

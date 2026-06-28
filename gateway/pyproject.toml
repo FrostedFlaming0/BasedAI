@@ -1,0 +1,30 @@
+[project]
+name = "basedai-gateway"
+version = "0.1.0"
+description = "BasedAI HTTP gateway/indexer — miner discovery and inference proxy."
+requires-python = ">=3.10"
+dependencies = [
+    "web3>=6.15",
+    "eth-account>=0.11",
+    "eth-abi>=5.0",
+    "aiohttp>=3.9",
+    "httpx>=0.27",
+    "click>=8.1",
+    "structlog>=24.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "pytest-aiohttp>=1.0", "ruff>=0.4"]
+
+[project.scripts]
+basedai-gateway = "basedai_gateway.cli:main"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

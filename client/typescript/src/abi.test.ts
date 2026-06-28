@@ -17,12 +17,18 @@ describe("basedTokenAbi", () => {
 });
 
 describe("marketAbi", () => {
-  it("declares deposit and withdraw taking a single uint256 amount", () => {
-    for (const name of ["deposit", "withdraw"] as const) {
+  it("declares deposit and requestWithdraw taking a single uint256 amount", () => {
+    for (const name of ["deposit", "requestWithdraw"] as const) {
       const fn = getAbiItem({ abi: marketAbi, name }) as AbiFunction;
       expect(fn.stateMutability).toBe("nonpayable");
       expect(fn.inputs.map((i) => i.type)).toEqual(["uint256"]);
     }
+  });
+
+  it("declares withdraw() taking no arguments (two-step withdrawal)", () => {
+    const fn = getAbiItem({ abi: marketAbi, name: "withdraw" }) as AbiFunction;
+    expect(fn.stateMutability).toBe("nonpayable");
+    expect(fn.inputs.map((i) => i.type)).toEqual([]);
   });
 
   it("declares balances(address) -> uint256 view", () => {

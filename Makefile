@@ -1,13 +1,14 @@
-.PHONY: install test test-contracts test-miner test-validator clean deploy-testnet deploy-mainnet lint
+.PHONY: install test test-contracts test-miner test-validator test-gateway clean deploy-testnet deploy-mainnet lint
 
 install:
 	cd contracts && forge install
 	cd miner && pip install -e .
 	cd validator && pip install -e .
+	cd gateway && pip install -e .
 	cd client/typescript && npm install
 	cd client/python && pip install -e .
 
-test: test-contracts test-miner test-validator
+test: test-contracts test-miner test-validator test-gateway
 
 test-contracts:
 	cd contracts && forge test -vvv
@@ -18,10 +19,14 @@ test-miner:
 test-validator:
 	cd validator && pytest
 
+test-gateway:
+	cd gateway && pytest
+
 lint:
 	cd contracts && forge fmt --check
 	cd miner && ruff check src tests
 	cd validator && ruff check src tests
+	cd gateway && ruff check src tests
 	cd client/typescript && npm run lint
 
 deploy-testnet:
@@ -29,7 +34,8 @@ deploy-testnet:
 
 deploy-mainnet:
 	@echo "Refusing to deploy to mainnet without explicit confirmation."
-	@echo "Run: cd contracts && forge script script/Deploy.s.sol --rpc-url $$INK_RPC --broadcast --verify"
+	@echo "Mainnet hosts the L1 BrainNFT + bridge adapter (DeployMainnet), NOT the L2 stack (Deploy)."
+	@echo "Run: cd contracts && forge script script/DeployMainnet.s.sol --rpc-url $$MAINNET_RPC --broadcast --verify"
 
 clean:
 	cd contracts && forge clean

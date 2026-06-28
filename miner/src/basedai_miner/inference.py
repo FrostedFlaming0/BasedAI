@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import hashlib
 from dataclasses import dataclass
 from typing import Optional
 
@@ -41,15 +40,17 @@ class InferenceEngine:
 
     async def start(self) -> None:
         """Lazy-load the model. Allows the miner to start its P2P stack first."""
+        revision = self._kwargs.get("revision")
         try:
             from vllm import AsyncLLMEngine, AsyncEngineArgs
         except ImportError:
             log.warning("vllm.not_available", fallback="transformers")
-            self._engine = _TransformersFallback(self.model_name)
+            self._engine = _TransformersFallback(self.model_name, revision)
             return
 
         args = AsyncEngineArgs(
             model=self.model_name,
+            revision=revision,  # pin the model revision (supply-chain integrity)
             quantization=self._kwargs.get("quantization"),
             max_model_len=self._kwargs.get("max_model_len", 8192),
             gpu_memory_utilization=self._kwargs.get("gpu_memory_utilization", 0.9),
@@ -84,12 +85,13 @@ class InferenceEngine:
 class _TransformersFallback:
     """Minimal fallback for environments without vLLM (e.g., CI)."""
 
-    def __init__(self, model_name: str):
+    def __init__(self, model_name: str, revision: str | None = None):
         self.model_name = model_name
-        # Lazy import to avoid loading transformers if not needed
+        # Lazy import to avoid loading transformers if not needed.
         from transformers import AutoModelForCausalLM, AutoTokenizer
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.model = AutoModelForCausalLM.from_pretrained(model_name)
+        # Pin the revision (supply-chain integrity): a bare model id resolves to a mutable HEAD.
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name, revision=revision)
+        self.model = AutoModelForCausalLM.from_pretrained(model_name, revision=revision)
 
     async def generate(self, req: InferenceRequest) -> str:
         loop = asyncio.get_event_loop()
@@ -108,4 +110,7 @@ class _TransformersFallback:
 
 
 def _h(s: str) -> str:
-    return "0x" + hashlib.sha256(s.encode()).hexdigest()
+    # keccak-256 to match the clients and on-chain hashing (prompt/response hash consistency).
+    from eth_utils import keccak
+
+    return "0x" + keccak(text=s).hex()

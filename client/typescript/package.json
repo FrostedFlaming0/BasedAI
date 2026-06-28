@@ -12,15 +12,21 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "viem": "^2.9.0"
+    "viem": "^2.53.1"
+  },
+  "overrides": {
+    "ws": "^8.21.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
     "eslint": "^8.57.0",
     "typescript": "^5.4.0",
-    "vitest": "^1.4.0"
+    "vitest": "^4.1.9"
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "engines": {
     "node": ">=18"
   },

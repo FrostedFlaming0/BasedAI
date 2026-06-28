@@ -10,10 +10,13 @@ from typing import Optional
 class InferenceRequest:
     brain_id: int
     prompt: str
-    budget: int                       # wei of BASED
+    budget: int                       # wei of BASED — the MAX the user will pay (the final charge)
     max_tokens: int = 256
     temperature: float = 0.7
     expiry: Optional[int] = None      # unix seconds; defaults to now + 1h
+    # The pre-authorization reservation: the small amount a miner may redeem as a no-delivery
+    # fallback (must be <= the market's on-chain maxReservation). 0 => use a minimal default.
+    reservation: int = 0
 
 
 @dataclass

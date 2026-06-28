@@ -19,10 +19,15 @@ export interface InferenceRequest {
   prompt: string;
   maxTokens?: number;
   temperature?: number;
-  /** Maximum BASED budget for this request, in wei. */
+  /** Maximum BASED budget for this request, in wei — the ceiling for the final, counter-signed charge. */
   budget: bigint;
   /** Receipt expiry, unix seconds. Defaults to now + 1h. */
   expiry?: number;
+  /**
+   * Pre-authorization reservation, in wei: the bounded amount a miner may redeem as a no-delivery
+   * fallback. Must not exceed the market's on-chain maxReservation. Omit/0 to use the default.
+   */
+  reservation?: bigint;
 }
 
 export interface InferenceResponse {

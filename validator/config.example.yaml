@@ -3,10 +3,11 @@ brain_id: 8
 chain:
   rpc_url: ${INK_RPC}
   chain_id: 57073
-  based_token: "0x0000000000000000000000000000000000000000"
-  subnet_registry: "0x0000000000000000000000000000000000000000"
-  scoring_registry: "0x0000000000000000000000000000000000000000"
-  staking_vault: "0x0000000000000000000000000000000000000000"
+  # REPLACE the placeholders below with the real deployed addresses (zero address is rejected).
+  based_token: "0x1111111111111111111111111111111111111111"
+  subnet_registry: "0x2222222222222222222222222222222222222222"
+  scoring_registry: "0x4444444444444444444444444444444444444444"
+  staking_vault: "0x5555555555555555555555555555555555555555"
 
 wallet:
   private_key: ${VALIDATOR_PRIVATE_KEY}
@@ -21,3 +22,8 @@ scoring:
   challenge_interval_seconds: 60
   challenges_per_epoch: 60
   eval_set_path: "./eval_set.json"
+  # Gateway used to discover the reachable miner set for this Brain.
+  gateway_url: ${BASEDAI_GATEWAY_URL}        # e.g. https://gateway.basedai.network
+  # Aggregator that collects validator epoch signatures and submits the co-signed root.
+  aggregator_url: ${BASEDAI_AGGREGATOR_URL}  # e.g. https://aggregator.basedai.network
+  max_registration_fee: 0

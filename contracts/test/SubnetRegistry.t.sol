@@ -75,7 +75,7 @@ contract SubnetRegistryTest is Test {
         uint256 minerBefore = based.balanceOf(miner);
 
         vm.prank(miner);
-        registry.registerMiner(BRAIN_ID);
+        registry.registerMiner(BRAIN_ID, type(uint256).max);
 
         assertEq(based.balanceOf(miner), minerBefore - fee);
         assertEq(based.balanceOf(BURN_ADDRESS), fee);
@@ -87,9 +87,9 @@ contract SubnetRegistryTest is Test {
         registry.activate(BRAIN_ID, bytes32(uint256(0xabc)), "ipfs://model");
 
         vm.startPrank(miner);
-        registry.registerMiner(BRAIN_ID);
+        registry.registerMiner(BRAIN_ID, type(uint256).max);
         vm.expectRevert(ISubnetRegistry.AlreadyRegistered.selector);
-        registry.registerMiner(BRAIN_ID);
+        registry.registerMiner(BRAIN_ID, type(uint256).max);
         vm.stopPrank();
     }
 
@@ -131,7 +131,7 @@ contract SubnetRegistryTest is Test {
         for (uint256 i = 0; i < n; i++) {
             address m = address(uint160(i + 1000));
             vm.prank(m);
-            registry.registerMiner(BRAIN_ID);
+            registry.registerMiner(BRAIN_ID, 0);
         }
         assertEq(registry.minerCount(BRAIN_ID), n);
     }

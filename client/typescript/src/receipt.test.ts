@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { getAddress, type Hex } from "viem";
 import { receiptDigest, newNonce } from "./receipt.js";
 import type { Receipt } from "./types.js";
+import { assertFinalReceiptIdentity } from "./client.js";
 
 const MARKET = getAddress("0x3333333333333333333333333333333333333333");
 const CHAIN_ID = 763373;
@@ -91,5 +92,18 @@ describe("newNonce", () => {
     for (let i = 0; i < 1000; i++) seen.add(newNonce());
     // Collisions in 1000 draws from 2^64 are astronomically unlikely.
     expect(seen.size).toBe(1000);
+  });
+});
+
+describe("final receipt binding", () => {
+  it("allows only response hash and amount to change", () => {
+    const preauth = fixtureReceipt();
+    const final = {
+      ...preauth,
+      responseHash: ("0x" + "cc".repeat(32)) as Hex,
+      amount: 123n,
+    };
+    expect(() => assertFinalReceiptIdentity(preauth, final)).not.toThrow();
+    expect(() => assertFinalReceiptIdentity(preauth, { ...final, nonce: 43n })).toThrow(/identity/);
   });
 });

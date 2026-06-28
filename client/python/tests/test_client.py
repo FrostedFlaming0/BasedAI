@@ -13,7 +13,9 @@ from eth_account import Account
 from eth_account.messages import encode_defunct
 from web3 import Web3
 
-from basedai_client.client import BasedClient, ClientConfig, _erc20, _market
+from eth_utils import keccak
+
+from basedai_client.client import DEFAULT_RESERVATION, BasedClient, ClientConfig, _assert_final_receipt_identity, _erc20, _market
 from basedai_client.types import InferenceRequest, InferenceResponse, Receipt
 
 # Cross-client golden vector: the same fixed receipt produces this digest in the
@@ -109,6 +111,35 @@ class TestAccountGuards:
             _client(private_key=None).balance()
 
 
+class TestReservation:
+    def test_final_receipt_cannot_change_nonce(self):
+        preauth = _fixture_receipt()
+        final = _fixture_receipt()
+        final.response_hash = "0x" + "cc" * 32
+        final.amount = 123
+        _assert_final_receipt_identity(preauth, final)
+        final.nonce += 1
+        with pytest.raises(RuntimeError, match="identity"):
+            _assert_final_receipt_identity(preauth, final)
+    def test_default_reservation_is_small(self):
+        # 0.01 BASED — a bounded fallback, far below a typical budget.
+        assert DEFAULT_RESERVATION == 10**16
+
+    def test_request_reservation_defaults_to_zero(self):
+        req = InferenceRequest(brain_id=1, prompt="hi", budget=10**18)
+        assert req.reservation == 0  # 0 => client uses DEFAULT_RESERVATION
+
+    def test_sentinel_matches_contract_formula(self):
+        # The client's pre-auth sentinel must equal the contract's recomputation
+        # keccak256(abi.encodePacked(promptHash, bytes32(nonce))), or the on-chain
+        # reservation cap would fail to recognize a pre-auth.
+        prompt_hash = "0x" + Web3.keccak(text="hello").hex()
+        nonce = 123456789
+        client_sentinel = Web3.keccak(hexstr=prompt_hash[2:] + format(nonce, "064x"))
+        contract_sentinel = keccak(bytes.fromhex(prompt_hash[2:]) + nonce.to_bytes(32, "big"))
+        assert client_sentinel == contract_sentinel
+
+
 class TestTypes:
     def test_inference_request_defaults(self):
         req = InferenceRequest(brain_id=1, prompt="hi", budget=10)
@@ -140,6 +171,16 @@ class TestContractBuilders:
     def test_market_exposes_deposit_withdraw_balances(self):
         w3 = _client().w3
         c = _market(w3, MARKET)
-        assert {"deposit", "withdraw", "balances"} <= {
+        # Two-step withdrawal: requestWithdraw(amount) then withdraw() (no args).
+        assert {"deposit", "requestWithdraw", "withdraw", "balances"} <= {
             f.abi["name"] for f in c.all_functions()
         }
+
+    def test_withdraw_is_two_step_no_amount(self):
+        w3 = _client().w3
+        c = _market(w3, MARKET)
+        withdraw = next(f for f in c.all_functions() if f.abi["name"] == "withdraw")
+        # withdraw() takes no arguments now (the contract pays out min(requested, balance)).
+        assert withdraw.abi["inputs"] == []
+        request = next(f for f in c.all_functions() if f.abi["name"] == "requestWithdraw")
+        assert [i["type"] for i in request.abi["inputs"]] == ["uint256"]

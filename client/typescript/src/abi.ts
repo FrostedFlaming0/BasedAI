@@ -27,11 +27,19 @@ export const marketAbi = [
     inputs: [{ name: "amount", type: "uint256" }],
     outputs: [],
   },
+  // Two-step withdrawal: requestWithdraw(amount) starts the delay, withdraw() (no args) completes it.
+  {
+    type: "function",
+    name: "requestWithdraw",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "amount", type: "uint256" }],
+    outputs: [],
+  },
   {
     type: "function",
     name: "withdraw",
     stateMutability: "nonpayable",
-    inputs: [{ name: "amount", type: "uint256" }],
+    inputs: [],
     outputs: [],
   },
   {
@@ -39,6 +47,21 @@ export const marketAbi = [
     name: "balances",
     stateMutability: "view",
     inputs: [{ name: "user", type: "address" }],
+    outputs: [{ type: "uint256" }],
+  },
+  // Metered pricing — read so the client derives the charge independently of the miner.
+  {
+    type: "function",
+    name: "pricePerByte",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "pricePerRequest",
+    stateMutability: "view",
+    inputs: [],
     outputs: [{ type: "uint256" }],
   },
 ] as const;

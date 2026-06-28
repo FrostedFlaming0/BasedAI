@@ -73,12 +73,29 @@ class ReceiptBatcher:
     def add(self, receipt: Receipt, user_sig: str) -> None:
         self._pending.append((receipt, user_sig))
 
+    def add_or_replace(self, receipt: Receipt, user_sig: str) -> None:
+        """Add a receipt, replacing any pending one with the same (user, nonce). Used by /settle so
+        the counter-signed FINAL receipt (actual cost) supersedes the queued pre-authorization."""
+        self._pending = [
+            (r, s) for (r, s) in self._pending
+            if not (r.user.lower() == receipt.user.lower() and r.nonce == receipt.nonce)
+        ]
+        self._pending.append((receipt, user_sig))
+
     def should_flush(self) -> bool:
         return len(self._pending) >= self.batch_size
 
     async def flush(self) -> list[str]:
-        """Submit pending receipts on-chain. Returns list of tx hashes."""
+        """Submit pending receipts on-chain. Returns list of tx hashes.
+
+        Failures are logged (not silently swallowed) and the failing receipt is retained for the
+        next flush, so transient RPC errors do not silently forfeit miner revenue.
+        """
+        import structlog
+
+        log = structlog.get_logger()
         tx_hashes: list[str] = []
+        retained: list[tuple[Receipt, str]] = []
         for receipt, sig in self._pending:
             try:
                 tx = self.market.functions.redeem(
@@ -87,10 +104,10 @@ class ReceiptBatcher:
                 signed = self.account.sign_transaction(tx)
                 tx_hash = self.market.w3.eth.send_raw_transaction(signed.rawTransaction)
                 tx_hashes.append(tx_hash.hex())
-            except Exception:
-                # Receipt may have expired or been double-spent; drop and continue.
-                continue
-        self._pending.clear()
+            except Exception as e:
+                log.warning("receipt.redeem_failed", user=receipt.user, nonce=receipt.nonce, error=str(e))
+                retained.append((receipt, sig))
+        self._pending = retained
         return tx_hashes
 
 

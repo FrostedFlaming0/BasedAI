@@ -22,13 +22,31 @@ contract BrainNFT is ERC721Enumerable, ReentrancyGuard, AccessControl, IBrainNFT
     uint256 public constant FIRST_PUBLIC_ID = 7;
     uint64 public constant STAKE_LOCK_DURATION = 90 days;
 
+    /// @dev Minimum interval between governance stake-amount adjustments (enforces the
+    ///      documented "quarterly" cadence so repeated same-block 2x steps cannot compound).
+    uint64 public constant STAKE_ADJUST_COOLDOWN = 90 days;
+
     /// @dev Stake amounts can be adjusted quarterly by governance, bounded to [50%, 200%]
     ///      of the previous value.
     uint256 public pepecoinStakeAmount;
     uint256 public basedStakeAmount;
+    uint64 public lastPepecoinStakeUpdate;
+    uint64 public lastBasedStakeUpdate;
 
     IERC20 public immutable PEPECOIN;
     IERC20 public immutable BASEDAI;
+
+    /// @notice Primary authorized bridge/escrow allowed to custody otherwise-soulbound Brains
+    ///         (kept for backward compatibility; prefer the `isBridgeEndpoint` allowlist).
+    address public bridge;
+
+    /// @notice Allowlist of authorized bridge endpoints. The cross-L2 flow spans TWO addresses —
+    ///         the L1 adapter that escrows on deposit AND the canonical bridge escrow that releases
+    ///         on withdrawal — so both must be authorizable; a single `bridge` made withdrawal
+    ///         (escrow -> user) revert, locking Brains on one side.
+    mapping(address => bool) public isBridgeEndpoint;
+
+    event BridgeEndpointSet(address indexed endpoint, bool allowed);
 
     uint256 private _totalSupply;
     uint256 public nextPublicId = FIRST_PUBLIC_ID;
@@ -123,39 +141,76 @@ contract BrainNFT is ERC721Enumerable, ReentrancyGuard, AccessControl, IBrainNFT
         if (newAmount == 0) revert InvalidStakeAmount();
 
         if (asset == StakeAsset.Pepecoin) {
+            require(block.timestamp >= lastPepecoinStakeUpdate + STAKE_ADJUST_COOLDOWN, "cooldown");
             uint256 old = pepecoinStakeAmount;
             // Floor 50%, ceiling 200% of previous value
             require(newAmount >= old / 2 && newAmount <= old * 2, "out of bounds");
             pepecoinStakeAmount = newAmount;
+            lastPepecoinStakeUpdate = uint64(block.timestamp);
             emit StakeAmountUpdated(asset, old, newAmount);
         } else if (asset == StakeAsset.BasedAI) {
+            require(block.timestamp >= lastBasedStakeUpdate + STAKE_ADJUST_COOLDOWN, "cooldown");
             uint256 old = basedStakeAmount;
             require(newAmount >= old / 2 && newAmount <= old * 2, "out of bounds");
             basedStakeAmount = newAmount;
+            lastBasedStakeUpdate = uint64(block.timestamp);
             emit StakeAmountUpdated(asset, old, newAmount);
         } else {
             revert InvalidStakeAmount();
         }
     }
 
+    /// @notice Mint one of the reserved administrative Brains (ids 0..6). Closes the gap where the
+    ///         "reserved" range had no mint path. Reserved Brains carry no stake and are soulbound.
+    function mintReserved(address to, uint256 brainId) external onlyRole(GOVERNANCE_ROLE) returns (uint256) {
+        if (brainId >= FIRST_PUBLIC_ID) revert InvalidStakeAmount();
+        _totalSupply += 1;
+        _safeMint(to, brainId);
+        return brainId;
+    }
+
+    /// @notice Set (or clear) the primary authorized bridge/escrow that may custody soulbound Brains.
+    function setBridge(address newBridge) external onlyRole(GOVERNANCE_ROLE) {
+        bridge = newBridge;
+    }
+
+    /// @notice Authorize (or revoke) an additional bridge endpoint. Governance must authorize BOTH
+    ///         the L1 adapter and the canonical bridge escrow so deposit AND withdrawal both work.
+    function setBridgeEndpoint(address endpoint, bool allowed) external onlyRole(GOVERNANCE_ROLE) {
+        isBridgeEndpoint[endpoint] = allowed;
+        emit BridgeEndpointSet(endpoint, allowed);
+    }
+
     // --- Internals ---
 
+    /// @dev IDs are allocated strictly in [FIRST_PUBLIC_ID, MAX_SUPPLY) and never reused, so the
+    ///      minted id can never drift past the stated 0..63 space (the v1 burn+remint drift bug).
     function _allocateBrainId() internal returns (uint256) {
-        if (_totalSupply >= MAX_SUPPLY - FIRST_PUBLIC_ID) revert MaxSupplyReached();
         uint256 candidate = nextPublicId;
+        if (candidate >= MAX_SUPPLY) revert MaxSupplyReached();
         nextPublicId = candidate + 1;
         _totalSupply += 1;
         return candidate;
     }
 
-    /// @dev Stake-minted Brains are non-transferable until burned.
+    /// @dev Stake-minted Brains are non-transferable, EXCEPT they may be escrowed into / released
+    ///      from the authorized bridge so they can cross to L2.
     function _update(address to, uint256 tokenId, address auth) internal override returns (address) {
         address from = _ownerOf(tokenId);
         if (from != address(0) && to != address(0)) {
-            // Transfer between non-zero addresses is forbidden.
-            revert TransferRestricted();
+            // Soulbound EXCEPT transfers into/out of an authorized bridge endpoint. The flow spans two
+            // endpoints (L1 adapter on deposit, canonical escrow on withdrawal), so authorizing either
+            // side suffices — this makes the escrow -> user withdrawal succeed instead of reverting.
+            if (!_isBridgeEndpoint(from) && !_isBridgeEndpoint(to)) {
+                revert TransferRestricted();
+            }
         }
         return super._update(to, tokenId, auth);
+    }
+
+    /// @dev An address is an authorized bridge endpoint if it is the primary `bridge` or on the allowlist.
+    function _isBridgeEndpoint(address a) internal view returns (bool) {
+        return a != address(0) && (a == bridge || isBridgeEndpoint[a]);
     }
 
     function supportsInterface(bytes4 interfaceId)

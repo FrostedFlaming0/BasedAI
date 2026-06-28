@@ -21,6 +21,12 @@ import type {
   Receipt,
 } from "./types.js";
 
+/**
+ * Default pre-authorization reservation (the bounded no-delivery fallback) when a request does not
+ * set one: 0.01 BASED. Must not exceed the market's on-chain `maxReservation`.
+ */
+export const DEFAULT_RESERVATION = 10n ** 16n;
+
 export class BasedClient {
   private readonly config: ClientConfig;
   private readonly publicClient: PublicClient;
@@ -88,7 +94,22 @@ export class BasedClient {
     });
   }
 
-  async withdraw(amount: bigint): Promise<Hex> {
+  /** Begin a withdrawal (step 1 of 2). Funds remain redeemable by miners during the delay. */
+  async requestWithdraw(amount: bigint): Promise<Hex> {
+    this.requireWallet();
+    return this.walletClient!.writeContract({
+      account: this.account!,
+      chain: null,
+      address: this.config.contracts.market,
+      abi: marketAbi,
+      functionName: "requestWithdraw",
+      args: [amount],
+    });
+  }
+
+  /** Complete a withdrawal (step 2 of 2) after the delay. Takes no amount: the contract pays out
+   *  min(requested, current balance). */
+  async withdraw(): Promise<Hex> {
     this.requireWallet();
     return this.walletClient!.writeContract({
       account: this.account!,
@@ -96,8 +117,27 @@ export class BasedClient {
       address: this.config.contracts.market,
       abi: marketAbi,
       functionName: "withdraw",
-      args: [amount],
+      args: [],
     });
+  }
+
+  /** (pricePerByte, pricePerRequest) from the market. */
+  private async readPricing(): Promise<[bigint, bigint]> {
+    try {
+      const ppt = (await this.publicClient.readContract({
+        address: this.config.contracts.market,
+        abi: marketAbi,
+        functionName: "pricePerByte",
+      })) as bigint;
+      const ppr = (await this.publicClient.readContract({
+        address: this.config.contracts.market,
+        abi: marketAbi,
+        functionName: "pricePerRequest",
+      })) as bigint;
+      return [ppt, ppr];
+    } catch {
+      return [0n, 0n];
+    }
   }
 
   // --- Subnet discovery ---
@@ -135,25 +175,33 @@ export class BasedClient {
     const expiry = req.expiry ?? Math.floor(Date.now() / 1000) + 3600;
     const nonce = newNonce();
 
-    // The user signs an upper-bound receipt: maxBudget. The miner only redeems for the
-    // actual cost (which must be ≤ budget). v1 simplification: amount in the signed
-    // receipt is the maxBudget; on-chain redemption uses min(receipt.amount, balance).
-    const receipt: Receipt = {
+    // The pre-authorization is only a bounded no-delivery FALLBACK: its amount is capped on-chain
+    // at the market's maxReservation, so a miner can never draw the whole budget from a receipt
+    // signed before any output exists. Full payment goes through the counter-signed FINAL receipt
+    // below (bound to the real responseHash + actual cost), which we sign only after verifying the
+    // delivered output. The sentinel must match keccak256(abi.encodePacked(promptHash, nonce)).
+    let reservation = req.reservation && req.reservation > 0n ? req.reservation : DEFAULT_RESERVATION;
+    if (reservation > req.budget) reservation = req.budget;
+
+    const sentinel = keccak256(
+      ("0x" + promptHash.slice(2) + nonce.toString(16).padStart(64, "0")) as Hex,
+    );
+    const preauth: Receipt = {
       user: this.account!.address,
       miner: miner.address,
       brainId: req.brainId,
       promptHash,
-      responseHash: ("0x" + "00".repeat(32)) as Hex, // filled by miner
-      amount: req.budget,
+      responseHash: sentinel,
+      amount: reservation,
       expiry,
       nonce,
     };
 
-    const userSig = await signReceipt(
+    const preauthSig = await signReceipt(
       this.walletClient!,
       this.config.contracts.market,
       this.config.chainId,
-      receipt,
+      preauth,
     );
 
     const url = `${this.config.gatewayUrl}/brains/${req.brainId}/infer`;
@@ -164,8 +212,9 @@ export class BasedClient {
         prompt: req.prompt,
         max_tokens: req.maxTokens ?? 256,
         temperature: req.temperature ?? 0.7,
-        receipt: serializeReceipt(receipt),
-        user_signature: userSig,
+        budget: req.budget.toString(),
+        receipt: serializeReceipt(preauth),
+        user_signature: preauthSig,
         target_miner: miner.address,
       }),
     });
@@ -181,7 +230,59 @@ export class BasedClient {
       tokens_in: number;
       tokens_out: number;
       miner_signature: Hex;
+      final_receipt?: {
+        user: Hex; miner: Hex; brain_id: number; prompt_hash: Hex;
+        response_hash: Hex; amount: string; expiry: number; nonce: string;
+      };
     };
+
+    // Verify the delivered output matches the committed response hash before paying.
+    if (keccak256(toBytes(data.text)).toLowerCase() !== data.response_hash.toLowerCase()) {
+      throw new Error("response hash does not match returned text");
+    }
+
+    // Counter-sign the FINAL receipt (binds delivered output + actual cost) and settle it. Only
+    // this receipt — signed after verifying the response — authorizes the full charge.
+    let charged = reservation; // what the miner can draw if settlement never happens
+    if (data.final_receipt) {
+      const fr = data.final_receipt;
+      const finalReceipt: Receipt = {
+        user: fr.user, miner: fr.miner, brainId: fr.brain_id, promptHash: fr.prompt_hash,
+        responseHash: fr.response_hash, amount: BigInt(fr.amount), expiry: fr.expiry, nonce: BigInt(fr.nonce),
+      };
+      assertFinalReceiptIdentity(preauth, finalReceipt);
+      if (finalReceipt.amount > req.budget) throw new Error("final amount exceeds budget");
+      // UTF-8 bytes are independently measurable without trusting miner token accounting.
+      const [ppt, ppr] = await this.readPricing();
+      if (ppt <= 0n && ppr <= 0n) throw new Error("market pricing is disabled");
+      const inputBytes = BigInt(new TextEncoder().encode(req.prompt).length);
+      const outputBytes = BigInt(new TextEncoder().encode(data.text).length);
+      const quoted = ppr + ppt * (inputBytes + outputBytes);
+      const expected = quoted < req.budget ? quoted : req.budget;
+      if (finalReceipt.amount !== expected) {
+        throw new Error(`incorrect metered charge: amount ${finalReceipt.amount}, expected ${expected}`);
+      }
+      // The final must bind the DELIVERED output, not the pre-auth sentinel.
+      if (finalReceipt.responseHash.toLowerCase() !== data.response_hash.toLowerCase()) {
+        throw new Error("final receipt response hash does not match delivered text");
+      }
+      const finalSig = await signReceipt(
+        this.walletClient!,
+        this.config.contracts.market,
+        this.config.chainId,
+        finalReceipt,
+      );
+      charged = finalReceipt.amount;
+      try {
+        await fetch(`${this.config.gatewayUrl}/brains/${req.brainId}/settle`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ receipt: serializeReceipt(finalReceipt), user_signature: finalSig }),
+        });
+      } catch {
+        // Settlement is best-effort; the signed pre-auth remains the miner's bounded fallback.
+      }
+    }
 
     return {
       text: data.text,
@@ -190,7 +291,7 @@ export class BasedClient {
       responseHash: data.response_hash,
       tokensIn: data.tokens_in,
       tokensOut: data.tokens_out,
-      amount: req.budget,
+      amount: charged,
       minerSignature: data.miner_signature,
     };
   }
@@ -205,6 +306,19 @@ export class BasedClient {
     if (!this.walletClient || !this.account) {
       throw new Error("Client requires a private key for write operations");
     }
+  }
+}
+
+export function assertFinalReceiptIdentity(preauth: Receipt, finalReceipt: Receipt): void {
+  if (
+    finalReceipt.user.toLowerCase() !== preauth.user.toLowerCase() ||
+    finalReceipt.miner.toLowerCase() !== preauth.miner.toLowerCase() ||
+    finalReceipt.brainId !== preauth.brainId ||
+    finalReceipt.promptHash.toLowerCase() !== preauth.promptHash.toLowerCase() ||
+    finalReceipt.expiry !== preauth.expiry ||
+    finalReceipt.nonce !== preauth.nonce
+  ) {
+    throw new Error("final receipt identity does not match preauthorization");
   }
 }
 

@@ -40,10 +40,12 @@ interface ISubnetRegistry {
 
     error NotBrainOwner();
     error SubnetInactive();
+    error SubnetAlreadyActive();
     error AlreadyRegistered();
     error NotRegistered();
     error CapacityReached();
     error InvalidSplit();
+    error FeeExceedsMax();
 
     function MAX_VALIDATORS_PER_BRAIN() external view returns (uint256);
     function MAX_MINERS_PER_BRAIN() external view returns (uint256);
@@ -54,9 +56,11 @@ interface ISubnetRegistry {
     function setRegistrationFee(uint256 brainId, uint256 fee) external;
     function setEmissionSplit(uint256 brainId, uint16 ownerSplitBps, uint16 minerShareBps) external;
 
-    function registerValidator(uint256 brainId) external;
+    /// @param maxFee Slippage guard: revert if the current registration fee exceeds this, so a
+    ///               Brain owner cannot front-run a registration with a fee hike.
+    function registerValidator(uint256 brainId, uint256 maxFee) external;
     function deregisterValidator(uint256 brainId) external;
-    function registerMiner(uint256 brainId) external;
+    function registerMiner(uint256 brainId, uint256 maxFee) external;
     function deregisterMiner(uint256 brainId) external;
 
     function getSubnet(uint256 brainId) external view returns (Subnet memory);

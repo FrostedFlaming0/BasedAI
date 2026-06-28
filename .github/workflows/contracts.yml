@@ -24,10 +24,12 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
-          version: nightly
+          # Pin a released toolchain instead of the mutable `nightly` for reproducible CI.
+          version: stable
 
       - name: Install dependencies
-        run: forge install
+        # Submodules are checked out above; `--no-commit` keeps the pinned revisions.
+        run: forge install --no-commit || true
 
       - name: Format check
         run: forge fmt --check

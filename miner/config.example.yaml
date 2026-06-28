@@ -3,16 +3,19 @@ brain_id: 8
 chain:
   rpc_url: ${INK_RPC}
   chain_id: 57073
-  based_token: "0x0000000000000000000000000000000000000000"
-  subnet_registry: "0x0000000000000000000000000000000000000000"
-  market: "0x0000000000000000000000000000000000000000"
-  scoring_registry: "0x0000000000000000000000000000000000000000"
+  # REPLACE the placeholders below with the real deployed addresses (zero address is rejected).
+  based_token: "0x1111111111111111111111111111111111111111"
+  subnet_registry: "0x2222222222222222222222222222222222222222"
+  market: "0x3333333333333333333333333333333333333333"
+  scoring_registry: "0x4444444444444444444444444444444444444444"
 
 wallet:
   private_key: ${MINER_PRIVATE_KEY}
 
 model:
   name: "meta-llama/Llama-3-8b-instruct"
+  # Pin an immutable revision (commit SHA / tag) for supply-chain integrity.
+  revision: "main"
   quantization: "awq"
   max_model_len: 8192
   gpu_memory_utilization: 0.9
@@ -24,6 +27,16 @@ p2p:
   bootstrap_peers:
     - "/dns/bootstrap.basedai.network/tcp/4001/p2p/12D3KooW..."
   gossip_topic_prefix: "basedai/v1"
+
+# HTTP transport (testnet). When gateway_url and public_url are set, the miner serves its
+# request handlers over HTTP and announces its reachable endpoint to the gateway so clients
+# and validators can discover it. Leave unset to run p2p-only.
+gateway:
+  gateway_url: ${BASEDAI_GATEWAY_URL}        # e.g. https://gateway.basedai.network
+  public_url: ${MINER_PUBLIC_URL}            # e.g. https://my-miner.example:8801 (publicly reachable)
+  http_listen_host: "0.0.0.0"
+  http_listen_port: 8801
+  announce_interval_seconds: 120
 
 receipt_batch_size: 50
 receipt_batch_interval_seconds: 300

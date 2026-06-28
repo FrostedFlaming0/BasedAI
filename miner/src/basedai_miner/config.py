@@ -6,8 +6,13 @@ import os
 from pathlib import Path
 from typing import Optional
 
+import re
+
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+_ADDR_RE = re.compile(r"^0x[0-9a-fA-F]{40}$")
+_ZERO_ADDR = "0x" + "0" * 40
 
 
 class ChainConfig(BaseModel):
@@ -17,6 +22,27 @@ class ChainConfig(BaseModel):
     subnet_registry: str
     market: str
     scoring_registry: str
+
+    @field_validator("rpc_url")
+    @classmethod
+    def _https_rpc(cls, v: str) -> str:
+        if not (v.startswith("https://") or v.startswith("http://localhost") or v.startswith("http://127.")):
+            raise ValueError("rpc_url must be https:// (or localhost) to avoid plaintext key exposure")
+        return v
+
+    @field_validator("based_token", "subnet_registry", "market", "scoring_registry")
+    @classmethod
+    def _valid_addr(cls, v: str) -> str:
+        if not _ADDR_RE.match(v) or v.lower() == _ZERO_ADDR:
+            raise ValueError(f"invalid or zero contract address: {v}")
+        return v
+
+    @field_validator("chain_id")
+    @classmethod
+    def _positive_chain(cls, v: int) -> int:
+        if v <= 0:
+            raise ValueError("chain_id must be positive")
+        return v
 
 
 class WalletConfig(BaseModel):
@@ -40,14 +66,27 @@ class P2PConfig(BaseModel):
     gossip_topic_prefix: str = "basedai/v1"
 
 
+class GatewayConfig(BaseModel):
+    # Gateway/indexer the miner announces its endpoint to (and that routes clients to it).
+    gateway_url: Optional[str] = None
+    # Publicly reachable base URL of THIS miner's HTTP server (what clients/validators dial).
+    public_url: Optional[str] = None
+    http_listen_host: str = "0.0.0.0"
+    http_listen_port: int = 8801
+    announce_interval_seconds: int = 120
+
+
 class MinerConfig(BaseModel):
     brain_id: int
     chain: ChainConfig
     wallet: WalletConfig
     model: ModelConfig
     p2p: P2PConfig = P2PConfig()
+    gateway: GatewayConfig = GatewayConfig()
     receipt_batch_size: int = 50
     receipt_batch_interval_seconds: int = 300
+    # Slippage guard for auto-registration; 0 = no cap (accept current fee).
+    max_registration_fee: int = 0
 
     @classmethod
     def from_file(cls, path: str | Path) -> "MinerConfig":

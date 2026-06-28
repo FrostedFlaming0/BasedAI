@@ -25,7 +25,11 @@ jobs:
           cache-dependency-path: client/typescript/package-lock.json
 
       - name: Install
-        run: npm ci || npm install
+        # Reproducible install from the lockfile only — no mutable `npm install` fallback.
+        run: npm ci
+
+      - name: Audit (fail on high+ runtime advisories)
+        run: npm audit --omit=dev --audit-level=high
 
       - name: Typecheck
         run: npm run typecheck

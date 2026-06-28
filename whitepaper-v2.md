@@ -1,4 +1,4 @@
-# BasedAI: A Decentralized LLM Inference Marketplace on Ink
+    # BasedAI: A Decentralized LLM Inference Marketplace on Ink
 
 **Version 2.0 — May 2026**
 
