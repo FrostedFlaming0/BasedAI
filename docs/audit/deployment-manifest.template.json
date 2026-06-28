@@ -1,0 +1,62 @@
+{
+  "schema": "basedai.deployment-manifest.v1",
+  "audit_commit": "<git commit sha>",
+  "audit_tag": "<optional tag>",
+  "generated_at_utc": "<iso8601>",
+  "toolchain": {
+    "solc": "0.8.24",
+    "foundry": "v1.7.1",
+    "python": "3.14.5",
+    "node": "22.22.3",
+    "openzeppelin_contracts": "dbb6104ce834628e473d2173bbc9d47f81a9eec3",
+    "forge_std": "620536fa5277db4e3fd46772d5cbc1ea0696fb43"
+  },
+  "networks": {
+    "ethereum_l1": {
+      "chain_id": 1,
+      "rpc_label": "MAINNET_RPC",
+      "contracts": {
+        "BrainNFT": {
+          "address": "<deployed address>",
+          "constructor_args": {
+            "pepecoin": "0xA9E8aCf069C58aEc8825542845Fd754e41a9489A",
+            "basedAI": "0x44971ABF0251958492FeE97dA3e5C5adA88B9185",
+            "pepeStake": "<wei>",
+            "basedStake": "<wei>",
+            "governance": "<multisig>"
+          },
+          "bytecode_hash": "<keccak256 deployed bytecode>"
+        },
+        "BrainBridgeAdapter": {
+          "address": "<optional deployed address>",
+          "constructor_args": {
+            "brainNFT": "<BrainNFT>",
+            "brainNFTL2": "<BrainNFTL2>",
+            "l1ERC721Bridge": "0x661235a238b11191211fa95d4dd9e423d521e0be"
+          },
+          "bytecode_hash": "<keccak256 deployed bytecode>"
+        }
+      }
+    },
+    "ink_l2": {
+      "chain_id": 57073,
+      "rpc_label": "INK_RPC",
+      "canonical_bridge": {
+        "L2ERC721Bridge": "0x4200000000000000000000000000000000000014"
+      },
+      "contracts": {
+        "BrainNFTL2": {"address": "<address>", "bytecode_hash": "<keccak256 deployed bytecode>"},
+        "SubnetRegistry": {"address": "<address>", "bytecode_hash": "<keccak256 deployed bytecode>"},
+        "StakingVault": {"address": "<address>", "bytecode_hash": "<keccak256 deployed bytecode>"},
+        "ScoringRegistry": {"address": "<address>", "bytecode_hash": "<keccak256 deployed bytecode>"},
+        "RewardDistributor": {"address": "<address>", "bytecode_hash": "<keccak256 deployed bytecode>"},
+        "ComputeUnitMarket": {"address": "<address>", "bytecode_hash": "<keccak256 deployed bytecode>"},
+        "TimelockController": {"address": "<address>", "bytecode_hash": "<keccak256 deployed bytecode>"},
+        "BasedGovernor": {"address": "<address>", "bytecode_hash": "<keccak256 deployed bytecode>"}
+      }
+    }
+  },
+  "roles": [],
+  "source_checksums": {},
+  "validation_commands": []
+}

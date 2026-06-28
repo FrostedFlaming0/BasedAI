@@ -32,23 +32,43 @@ Out of scope:
 
 ## Audits
 
-v1 contracts are audited by [TBD]. Audit reports live in `docs/audits/`.
+This repository is pre-audit. The audit candidate must be identified by an
+explicit commit or tag and accompanied by:
 
-The custom contracts (`ScoringRegistry`, `ComputeUnitMarket`, `SubnetRegistry`, `StakingVault`, `BasedGovernor`) are highest priority for audit. The L2 NFT (`BrainNFTL2`) is mostly OpenZeppelin and has less new attack surface. The mainnet `BrainNFT` has custom dual-asset stake-mint logic and should also be audited carefully.
+- `docs/audit/audit-scope.md`
+- `docs/audit/threat-model.md`
+- `docs/audit/privilege-matrix.md`
+- `docs/audit/deployment-manifest.template.json` or a network-specific manifest generated from it
+
+Highest-priority audit surfaces are the custom contracts (`BrainNFT`,
+`StakingVault`, `ScoringRegistry`, `ComputeUnitMarket`, `RewardDistributor`,
+`SubnetRegistry`, `BasedGovernor`) and deployment scripts. `BrainNFTL2` is
+small and mostly OpenZeppelin, but its immutable bridge/remote-token wiring is
+security-critical.
 
 ## Known limitations
 
-- The `ScoringRegistry` v1 simplification iterates a fixed set of Brain IDs when summing signer stake. Production needs an indexer or per-epoch signer-set declaration. Tracked as issue #TBD.
-- The `StakingVault` slashing mechanism v1 burns at the validator level rather than rebasing per-staker. A staker who unstakes after a slash receives a proportional reduction; pre-slash unstake requests are not retroactively slashed. Tracked as issue #TBD.
-- Equivocation fraud proofs in v1 require off-chain monitoring. A future version should incentivize fraud-proof submission with a portion of the slashed stake.
+- Validator scoring is heuristic. Before mainnet, use a non-public eval set,
+  add collusion/Sybil monitoring, and treat score roots as routing/slashing
+  inputs rather than as proof of model correctness.
+- Equivocation fraud proofs require off-chain monitoring. A future version
+  should consider permissionless proof rewards funded from slashed stake.
+- The HTTP gateway/aggregator path is the testnet transport. The libp2p module
+  remains a stub and is explicitly out of mainnet readiness unless separately
+  completed and audited.
+- Public testnet must still validate live Ink bridge message passing end to end:
+  L1 deposit -> L2 mint -> L2 withdrawal -> L1 release.
 
 ## Operational security
 
-The admin multisig holds emergency pause capability for `ComputeUnitMarket` only. It cannot:
+The bootstrap guardian may hold emergency pause capability for `ComputeUnitMarket`
+and timelock cancellation capability only. It cannot:
 
 - Mint BASED outside the emission schedule
 - Modify the emission schedule
 - Seize Brain NFTs
 - Override scoring results
+- Withdraw user balances or staked funds
 
-After the bootstrap period (12 months), admin keys transfer to the timelocked governance contract.
+Protocol administration is transferred to the timelocked governor during deployment;
+the deployer renounces bootstrap admin roles before the script completes.

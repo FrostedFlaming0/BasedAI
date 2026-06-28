@@ -413,7 +413,7 @@ Known limitations are documented in `docs/security.md` and tracked publicly. The
 
 The roadmap is structured around capability milestones, not calendar dates.
 
-**Phase 1 — Audit-ready code.** Contracts compiled, tested with >90% coverage, hardened against the v1 simplifications documented in `docs/security.md`. Off-chain components running end-to-end on testnet. Audit firm engaged.
+**Phase 1 — Audit-ready code.** Contracts compiled, covered by unit/fuzz/invariant tests and a reproducible coverage report, hardened against the v1 simplifications documented in `SECURITY.md`. Off-chain components running end-to-end on testnet. Audit firm engaged.
 
 **Phase 2 — Audit and remediation.** External audit completed; all critical and high findings resolved. Bug bounty program live on Immunefi.
 

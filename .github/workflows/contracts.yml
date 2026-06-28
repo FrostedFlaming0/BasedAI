@@ -17,19 +17,19 @@ jobs:
       run:
         working-directory: contracts
     steps:
-      - uses: actions/checkout@v4
+      # actions/checkout v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           submodules: recursive
 
       - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
+        # foundry-rs/foundry-toolchain v1
+        uses: foundry-rs/foundry-toolchain@c7450ba673e133f5ee30098b3b54f444d3a2ca2d
         with:
-          # Pin a released toolchain instead of the mutable `nightly` for reproducible CI.
-          version: stable
+          version: v1.7.1
 
       - name: Install dependencies
-        # Submodules are checked out above; `--no-commit` keeps the pinned revisions.
-        run: forge install --no-commit || true
+        run: git submodule status --recursive
 
       - name: Format check
         run: forge fmt --check
@@ -39,6 +39,11 @@ jobs:
 
       - name: Test
         run: forge test -vvv
+        env:
+          FOUNDRY_PROFILE: ci
+
+      - name: Invariants
+        run: forge test --match-contract StakingSolvencyInvariantTest -vvv
         env:
           FOUNDRY_PROFILE: ci
 

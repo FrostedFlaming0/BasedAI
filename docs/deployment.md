@@ -144,12 +144,16 @@ The deploy scripts can do this automatically with the `--verify` flag if `INK_EX
 
 - [ ] All contracts verified on Ink's explorer and Etherscan (for L1 contracts)
 - [ ] `SLASHER_ROLE` granted to `ScoringRegistry` on `StakingVault`
-- [ ] `BRIDGE_ROLE` granted to canonical L1 bridge on `BrainNFTL2`
+- [ ] `BrainNFTL2.bridge()` equals Ink's canonical `L2ERC721Bridge` predeploy
+- [ ] `BrainNFTL2.remoteToken()` equals the deployed L1 `BrainNFT`
+- [ ] L1 `BrainNFT.bridge()` equals Ink's canonical `L1ERC721Bridge`
+- [ ] Optional `BrainBridgeAdapter` is authorized via `BrainNFT.setBridgeEndpoint(adapter, true)`
 - [ ] Admin Brain IDs (0–6) staked and minted to operator multisig
 - [ ] Subgraph or indexer running for miner/validator discovery
-- [ ] Gateway service running for HTTP-to-libp2p relay
+- [ ] Gateway service running for HTTP miner discovery/proxy
 - [ ] Gateway configured with `GATEWAY_SCORING_REGISTRY` and durable `GATEWAY_CURSOR_FILE`
 - [ ] Aggregator running via `basedai-validator aggregator --config <config>`
+- [ ] Deployment manifest generated with `python scripts/generate_deployment_manifest.py`
 - [ ] Documentation links updated with mainnet addresses
 - [ ] Reference miner and validator deployed for at least one reference Brain
 - [ ] Bug bounty live on Immunefi

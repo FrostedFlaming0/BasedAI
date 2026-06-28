@@ -1,32 +1,39 @@
-.PHONY: install test test-contracts test-miner test-validator test-gateway clean deploy-testnet deploy-mainnet lint
+.PHONY: install test test-contracts test-miner test-validator test-gateway test-client-python test-devnet-e2e clean deploy-testnet deploy-mainnet lint
 
 install:
 	cd contracts && forge install
-	cd miner && pip install -e .
-	cd validator && pip install -e .
-	cd gateway && pip install -e .
-	cd client/typescript && npm install
-	cd client/python && pip install -e .
+	cd miner && pip install --require-hashes -r requirements-dev.lock && pip install --no-deps -e .
+	cd validator && pip install --require-hashes -r requirements-dev.lock && pip install --no-deps -e .
+	cd gateway && pip install --require-hashes -r requirements-dev.lock && pip install --no-deps -e .
+	cd client/typescript && npm ci
+	cd client/python && pip install --require-hashes -r requirements-dev.lock && pip install --no-deps -e .
 
-test: test-contracts test-miner test-validator test-gateway
+test: test-contracts test-miner test-validator test-gateway test-client-python test-devnet-e2e
 
 test-contracts:
 	cd contracts && forge test -vvv
 
 test-miner:
-	cd miner && pytest
+	cd miner && PYTHONPATH=src pytest
 
 test-validator:
-	cd validator && pytest
+	cd validator && PYTHONPATH=src pytest
 
 test-gateway:
-	cd gateway && pytest
+	cd gateway && PYTHONPATH=src pytest
+
+test-client-python:
+	cd client/python && PYTHONPATH=. pytest
+
+test-devnet-e2e:
+	PYTHONPATH=client/python:gateway/src:miner/src:validator/src python scripts/devnet_e2e.py
 
 lint:
 	cd contracts && forge fmt --check
 	cd miner && ruff check src tests
 	cd validator && ruff check src tests
 	cd gateway && ruff check src tests
+	ruff check scripts/devnet_e2e.py
 	cd client/typescript && npm run lint
 
 deploy-testnet:

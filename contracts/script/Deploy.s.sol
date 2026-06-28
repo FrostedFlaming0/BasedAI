@@ -25,34 +25,74 @@ import {IRewardDistributor} from "../src/interfaces/IRewardDistributor.sol";
 ///   - The deployer RENOUNCES every bootstrap admin role, so post-deploy the only way to act
 ///     through the timelock is a passed governance proposal (no standing superuser key).
 contract Deploy is Script {
-    function run() external {
-        uint256 pk = vm.envUint("DEPLOYER_PRIVATE_KEY");
-        address deployer = vm.addr(pk);
+    struct Deployment {
+        address basedAI;
+        address brainNFT;
+        address subnetRegistry;
+        address stakingVault;
+        address scoringRegistry;
+        address rewardDistributor;
+        address market;
+        address timelock;
+        address governor;
+        address l2Erc721Bridge;
+        address l1BrainNFT;
+        address guardian;
+    }
 
-        IERC20 basedAI = IERC20(vm.envAddress("BASEDAI_L2"));
-        uint256 quorumVotes = vm.envOr("GOV_QUORUM_VOTES", uint256(4));
-        uint256 minDelay = vm.envOr("TIMELOCK_MIN_DELAY", uint256(2 days));
+    struct Config {
+        uint256 pk;
+        address basedAI;
+        uint256 quorumVotes;
+        uint256 minDelay;
+        address l2Erc721Bridge;
+        address l1BrainNFT;
+        uint256 l1RemoteChainId;
+        address guardian;
+        uint256 maxReservation;
+        uint256 pricePerByte;
+        uint256 pricePerRequest;
+    }
+
+    function run() external returns (Deployment memory deployment) {
+        return runWithConfig(
+            Config({
+                pk: vm.envUint("DEPLOYER_PRIVATE_KEY"),
+                basedAI: vm.envAddress("BASEDAI_L2"),
+                quorumVotes: vm.envOr("GOV_QUORUM_VOTES", uint256(4)),
+                minDelay: vm.envOr("TIMELOCK_MIN_DELAY", uint256(2 days)),
+                l2Erc721Bridge: vm.envOr("L2_ERC721_BRIDGE", 0x4200000000000000000000000000000000000014),
+                l1BrainNFT: vm.envOr("L1_BRAIN_NFT", address(0)),
+                l1RemoteChainId: vm.envOr("L1_REMOTE_CHAIN_ID", uint256(1)),
+                guardian: vm.envOr("GUARDIAN", address(0)),
+                maxReservation: vm.envOr("MARKET_MAX_RESERVATION", uint256(1 ether)),
+                pricePerByte: vm.envOr("MARKET_PRICE_PER_BYTE", uint256(1 gwei)),
+                pricePerRequest: vm.envOr("MARKET_PRICE_PER_REQUEST", uint256(1e14))
+            })
+        );
+    }
+
+    function runWithConfig(Config memory cfg) public returns (Deployment memory deployment) {
+        address deployer = vm.addr(cfg.pk);
+
+        IERC20 basedAI = IERC20(cfg.basedAI);
         // BrainNFTL2 is an OptimismMintableERC721 minted/burned ONLY by Ink's canonical L2ERC721Bridge
         // (predeploy 0x4200..0014). L2 Brains exist solely by bridging a real Brain from L1, so the
         // remote (L1) Brain NFT address is MANDATORY — without it there is no Brain mint path, and the
         // deployer renounces admin while governance needs a Brain quorum, permanently deadlocking it.
-        address l2Erc721Bridge = vm.envOr("L2_ERC721_BRIDGE", 0x4200000000000000000000000000000000000014);
-        address l1BrainNFT = vm.envOr("L1_BRAIN_NFT", address(0));
-        uint256 l1RemoteChainId = vm.envOr("L1_REMOTE_CHAIN_ID", uint256(1)); // 1 mainnet / 11155111 sepolia
         require(
-            l1BrainNFT != address(0),
+            cfg.l1BrainNFT != address(0),
             "L1_BRAIN_NFT required: L2 Brains are minted only by bridging from L1; without it governance can never reach quorum after renounce"
         );
-        require(l2Erc721Bridge != address(0), "L2_ERC721_BRIDGE required");
-        require(quorumVotes > 0 && quorumVotes <= 64, "GOV_QUORUM_VOTES must be in (0, 64]");
+        require(cfg.l2Erc721Bridge != address(0), "L2_ERC721_BRIDGE required");
+        require(cfg.quorumVotes > 0 && cfg.quorumVotes <= 64, "GOV_QUORUM_VOTES must be in (0, 64]");
         // Optional guardian multisig that can CANCEL queued proposals (emergency brake only).
-        address guardian = vm.envOr("GUARDIAN", address(0));
 
-        vm.startBroadcast(pk);
+        vm.startBroadcast(cfg.pk);
 
         // Phase 1: L2 Brain representation — an OptimismMintableERC721 whose only minter/burner is the
         // canonical L2ERC721Bridge (no admin role, no custom minter). Soulbound like its L1 counterpart.
-        BrainNFTL2 brainNFT = new BrainNFTL2(l2Erc721Bridge, l1RemoteChainId, l1BrainNFT);
+        BrainNFTL2 brainNFT = new BrainNFTL2(cfg.l2Erc721Bridge, cfg.l1RemoteChainId, cfg.l1BrainNFT);
 
         // Phase 2: core registries.
         SubnetRegistry registry = new SubnetRegistry(IERC721Enumerable(address(brainNFT)), basedAI);
@@ -68,27 +108,24 @@ contract Deploy is Script {
 
         // Market splits redemptions (owner/miner/validator) and routes the validator share to the
         // distributor. `maxReservation` bounds what a pre-authorization receipt can draw (governance-tunable).
-        uint256 maxReservation = vm.envOr("MARKET_MAX_RESERVATION", uint256(1 ether));
         // Byte pricing is independently measurable by client and miner without trusting tokenizer output.
-        uint256 pricePerByte = vm.envOr("MARKET_PRICE_PER_BYTE", uint256(1 gwei));
-        uint256 pricePerRequest = vm.envOr("MARKET_PRICE_PER_REQUEST", uint256(1e14));
         ComputeUnitMarket market = new ComputeUnitMarket(
             basedAI,
             ISubnetRegistry(address(registry)),
             IRewardDistributor(address(rewardDistributor)),
-            maxReservation,
-            pricePerByte,
-            pricePerRequest,
+            cfg.maxReservation,
+            cfg.pricePerByte,
+            cfg.pricePerRequest,
             deployer
         );
 
         // Phase 3: governance. Timelock starts with the deployer as temporary admin so we can
         // wire roles atomically, then we hand off and renounce.
         address[] memory none = new address[](0);
-        TimelockController timelock = new TimelockController(minDelay, none, none, deployer);
+        TimelockController timelock = new TimelockController(cfg.minDelay, none, none, deployer);
 
         BasedGovernor governor =
-            new BasedGovernor(IERC721Enumerable(address(brainNFT)), staking, timelock, 64, quorumVotes);
+            new BasedGovernor(IERC721Enumerable(address(brainNFT)), staking, timelock, 64, cfg.quorumVotes);
 
         // Phase 4: wire roles.
         // ScoringRegistry can slash via StakingVault.
@@ -101,16 +138,16 @@ contract Deploy is Script {
 
         // Emergency pause of the market: bootstrap guardian (if set) plus governance via timelock.
         market.grantRole(market.PAUSER_ROLE(), address(timelock));
-        if (guardian != address(0)) {
-            market.grantRole(market.PAUSER_ROLE(), guardian);
+        if (cfg.guardian != address(0)) {
+            market.grantRole(market.PAUSER_ROLE(), cfg.guardian);
         }
 
         // Governor drives the timelock; execution is open (anyone can execute a queued, delayed op).
         timelock.grantRole(timelock.PROPOSER_ROLE(), address(governor));
         timelock.grantRole(timelock.CANCELLER_ROLE(), address(governor));
         timelock.grantRole(timelock.EXECUTOR_ROLE(), address(0));
-        if (guardian != address(0)) {
-            timelock.grantRole(timelock.CANCELLER_ROLE(), guardian);
+        if (cfg.guardian != address(0)) {
+            timelock.grantRole(timelock.CANCELLER_ROLE(), cfg.guardian);
         }
 
         // The L2 Brain minter is the canonical L2ERC721Bridge, fixed immutably in BrainNFTL2's
@@ -119,8 +156,8 @@ contract Deploy is Script {
         // Pre-renunciation reachability assertions: PROVE administration stays operable before the
         // deployer drops its keys. If any of these fail the script reverts and nothing is renounced,
         // so a misconfigured deploy can never strand the protocol with no admin.
-        require(brainNFT.bridge() == l2Erc721Bridge, "L2 Brain minter (bridge) not wired");
-        require(brainNFT.remoteToken() == l1BrainNFT, "L1 Brain remote token not wired: no Brains bridgeable");
+        require(brainNFT.bridge() == cfg.l2Erc721Bridge, "L2 Brain minter (bridge) not wired");
+        require(brainNFT.remoteToken() == cfg.l1BrainNFT, "L1 Brain remote token not wired: no Brains bridgeable");
         require(timelock.hasRole(timelock.PROPOSER_ROLE(), address(governor)), "governor cannot propose");
         require(timelock.hasRole(timelock.EXECUTOR_ROLE(), address(0)), "execution not open");
 
@@ -142,6 +179,21 @@ contract Deploy is Script {
 
         vm.stopBroadcast();
 
+        deployment = Deployment({
+            basedAI: address(basedAI),
+            brainNFT: address(brainNFT),
+            subnetRegistry: address(registry),
+            stakingVault: address(staking),
+            scoringRegistry: address(scoring),
+            rewardDistributor: address(rewardDistributor),
+            market: address(market),
+            timelock: address(timelock),
+            governor: address(governor),
+            l2Erc721Bridge: cfg.l2Erc721Bridge,
+            l1BrainNFT: cfg.l1BrainNFT,
+            guardian: cfg.guardian
+        });
+
         console2.log("$basedAI (L2):    ", address(basedAI));
         console2.log("BrainNFTL2:       ", address(brainNFT));
         console2.log("SubnetRegistry:   ", address(registry));
@@ -151,7 +203,7 @@ contract Deploy is Script {
         console2.log("Market:           ", address(market));
         console2.log("Timelock:         ", address(timelock));
         console2.log("Governor:         ", address(governor));
-        console2.log("L2 ERC721 bridge: ", l2Erc721Bridge);
-        console2.log("L1 Brain NFT:     ", l1BrainNFT);
+        console2.log("L2 ERC721 bridge: ", cfg.l2Erc721Bridge);
+        console2.log("L1 Brain NFT:     ", cfg.l1BrainNFT);
     }
 }

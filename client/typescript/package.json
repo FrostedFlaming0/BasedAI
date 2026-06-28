@@ -8,20 +8,20 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "test": "vitest run",
-    "lint": "eslint src --ext .ts",
+    "lint": "tsc --noEmit --pretty false",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "viem": "^2.53.1"
+    "viem": "2.53.1"
   },
   "overrides": {
-    "ws": "^8.21.0"
+    "ws": "8.21.0"
   },
   "devDependencies": {
-    "@types/node": "^20.11.0",
-    "eslint": "^8.57.0",
-    "typescript": "^5.4.0",
-    "vitest": "^4.1.9"
+    "@types/node": "20.19.43",
+    "eslint": "8.57.1",
+    "typescript": "5.9.3",
+    "vitest": "4.1.9"
   },
   "files": [
     "dist",
